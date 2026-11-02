@@ -1,0 +1,17 @@
+{
+  "name": "minecraft-trade-shop-api",
+  "private": true,
+  "type": "module",
+  "description": "API Minecraft Trade Shop (Cloudflare Worker + D1)",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "db:init": "wrangler d1 migrations apply minecraft-trade-shop --remote",
+    "db:init-local": "wrangler d1 migrations apply minecraft-trade-shop --local",
+    "admin": "node scripts/create-admin.js",
+    "backup": "wrangler d1 export minecraft-trade-shop --remote --output backup.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://minecraft-trade-shop.mikolaj1657.workers.dev http://localhost:8787; base-uri 'self'; form-action 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Minecraft Trade Shop</title>
+  <meta name="description" content="Barterowy cennik Minecrafta – wymieniaj przedmioty za przedmioty.">
+  <meta name="theme-color" content="#0e1310">
+  <link rel="icon" data-icon="mc:Grass_Block">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="./">
+        <img class="brand-icon" data-icon="mc:Emerald" alt="">
+        <span class="brand-name" id="shopName">Minecraft Trade Shop</span>
+      </a>
+      <span class="brand-tag">Cennik barterowy</span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <h1>Przedmiot za przedmiot.</h1>
+      <p>Bez złotówek i dolarów – tutaj płacisz blokami, sztabkami i diamentami. Sprawdź aktualne ceny wymiany.</p>
+    </section>
+
+    <section id="bundlesSection" class="bundles" hidden aria-labelledby="bundlesTitle">
+      <h2 id="bundlesTitle" class="section-title"><span class="dot"></span>Zestawy i rabaty</h2>
+      <div id="bundles" class="bundle-grid"></div>
+    </section>
+
+    <section aria-labelledby="priceTitle">
+      <div class="toolbar">
+        <h2 id="priceTitle" class="section-title"><span class="dot"></span>Aktualny cennik</h2>
+        <div class="controls">
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="search" type="search" placeholder="Szukaj przedmiotu…" autocomplete="off" aria-label="Szukaj przedmiotu">
+          </label>
+          <select id="sort" aria-label="Sortowanie">
+            <option value="default">Kolejność domyślna</option>
+            <option value="value-asc">Cena: od najtańszych</option>
+            <option value="value-desc">Cena: od najdroższych</option>
+            <option value="name-asc">Nazwa: A–Z</option>
+            <option value="name-desc">Nazwa: Z–A</option>
+          </select>
+        </div>
+      </div>
+      <div id="categories" class="chips" role="tablist" aria-label="Kategorie"></div>
+      <div id="grid" class="item-grid" aria-live="polite">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <p id="empty" class="empty" hidden>Nic nie znaleziono. Spróbuj innej nazwy.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <span>Minecraft Trade Shop · ceny aktualizowane na żywo</span>
+      <span class="muted">Nie jest powiązane z Mojang ani Microsoft. Ikony: Minecraft Wiki.</span>
+      <a href="admin.html" class="muted">Panel admina</a>
+    </div>
+  </footer>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

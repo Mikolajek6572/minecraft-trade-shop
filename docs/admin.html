@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://minecraft-trade-shop.mikolaj1657.workers.dev http://localhost:8787; base-uri 'self'; form-action 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel admina – Minecraft Trade Shop</title>
+  <meta name="theme-color" content="#0e1310">
+  <link rel="icon" data-icon="mc:Command_Block">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <!-- Logowanie -->
+  <main id="loginView" class="login-wrap" hidden>
+    <form id="loginForm" class="login-card" autocomplete="on">
+      <img data-icon="mc:Command_Block" alt="" class="login-icon">
+      <h1>Panel admina</h1>
+      <p class="muted">Minecraft Trade Shop</p>
+      <label>Login<input name="username" autocomplete="username" required maxlength="32"></label>
+      <label>Hasło<input name="password" type="password" autocomplete="current-password" required maxlength="200"></label>
+      <p id="loginError" class="form-error" role="alert"></p>
+      <button class="btn btn-primary" type="submit">Zaloguj</button>
+      <a href="./" class="muted small">← Wróć do cennika</a>
+    </form>
+  </main>
+
+  <!-- Panel -->
+  <div id="appView" hidden>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="./" target="_blank" rel="noopener">
+          <img class="brand-icon" data-icon="mc:Command_Block" alt="">
+          <span class="brand-name">Panel admina</span>
+        </a>
+        <div class="header-actions">
+          <span class="muted small" id="whoami"></span>
+          <a class="btn btn-ghost" href="./" target="_blank" rel="noopener">Zobacz stronę</a>
+          <button class="btn btn-ghost" id="logoutBtn">Wyloguj</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap admin-main">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="items" role="tab">Przedmioty</button>
+        <button class="tab" data-tab="bundles" role="tab">Zestawy i rabaty</button>
+        <button class="tab" data-tab="categories" role="tab">Kategorie</button>
+        <button class="tab" data-tab="settings" role="tab">Ustawienia</button>
+      </nav>
+
+      <!-- Przedmioty -->
+      <section class="tab-panel" id="tab-items">
+        <div class="panel-bar">
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="itemSearch" type="search" placeholder="Szukaj przedmiotu lub waluty…" aria-label="Szukaj">
+          </label>
+          <select id="itemCatFilter" aria-label="Filtr kategorii"></select>
+          <button class="btn btn-primary" id="addItemBtn">+ Dodaj przedmiot</button>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead><tr><th></th><th>Nazwa</th><th>Kategoria</th><th>Cena</th><th>Widoczny</th><th></th></tr></thead>
+            <tbody id="itemRows"></tbody>
+          </table>
+        </div>
+        <p id="itemEmpty" class="empty" hidden>Brak przedmiotów.</p>
+      </section>
+
+      <!-- Zestawy -->
+      <section class="tab-panel" id="tab-bundles" hidden>
+        <div class="panel-bar">
+          <p class="muted grow">Zestaw = kilka przedmiotów w jednej cenie. Rabat liczy się sam: suma cen osobno minus cena zestawu.</p>
+          <button class="btn btn-primary" id="addBundleBtn">+ Dodaj zestaw / rabat</button>
+        </div>
+        <div id="bundleList" class="admin-cards"></div>
+      </section>
+
+      <!-- Kategorie -->
+      <section class="tab-panel" id="tab-categories" hidden>
+        <form id="catForm" class="panel-bar">
+          <input name="name" placeholder="Nazwa nowej kategorii" maxlength="40" required class="grow">
+          <input name="icon" placeholder="Ikona (opcjonalnie), np. mc:Diamond_Sword" maxlength="500" class="grow">
+          <button class="btn btn-primary" type="submit">+ Dodaj kategorię</button>
+        </form>
+        <div id="catList" class="cat-list"></div>
+      </section>
+
+      <!-- Ustawienia -->
+      <section class="tab-panel" id="tab-settings" hidden>
+        <div class="settings-grid">
+          <form id="settingsForm" class="box">
+            <h2>Sklep</h2>
+            <label>Nazwa sklepu<input name="shopName" maxlength="60" required></label>
+            <button class="btn btn-primary" type="submit">Zapisz</button>
+          </form>
+          <form id="passwordForm" class="box" autocomplete="off">
+            <h2>Zmień hasło</h2>
+            <input type="text" name="username" autocomplete="username" hidden>
+            <label>Obecne hasło<input name="current" type="password" autocomplete="current-password" required></label>
+            <label>Nowe hasło (min. 10 znaków)<input name="next" type="password" autocomplete="new-password" minlength="10" required></label>
+            <label>Powtórz nowe hasło<input name="next2" type="password" autocomplete="new-password" minlength="10" required></label>
+            <button class="btn btn-primary" type="submit">Zmień hasło</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Okno przedmiotu -->
+  <dialog id="itemDialog" class="modal">
+    <form id="itemForm" method="dialog">
+      <header class="modal-head">
+        <h2 id="itemDialogTitle">Dodaj przedmiot</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-row">
+          <label class="grow">Nazwa przedmiotu<input name="name" required maxlength="60" placeholder="np. Golden Apple" list="itemNames"></label>
+          <label>Kategoria<select name="category_id" id="itemCategory"></select></label>
+        </div>
+        <div class="icon-field">
+          <div class="icon-slot lg" id="itemIconPreview"></div>
+          <label class="grow">Ikona
+            <input name="icon" maxlength="500" placeholder="puste = automatycznie z nazwy">
+            <span class="hint">Format <code>mc:Golden_Apple</code> (ikona z Minecraft Wiki) albo link <code>https://…</code>. Puste = ikona dobrana do nazwy (po angielsku).</span>
+          </label>
+        </div>
+        <fieldset class="prices">
+          <legend>Cena <span class="hint">– możesz dodać kilka przedmiotów</span></legend>
+          <div class="price-rows" id="itemPrices"></div>
+          <button type="button" class="btn btn-ghost add-price">+ Dodaj przedmiot do ceny</button>
+        </fieldset>
+        <label>Opis (opcjonalnie)<input name="note" maxlength="200" placeholder="np. Tylko na serwerze survival"></label>
+        <label class="check"><input type="checkbox" name="visible" checked> Widoczny w cenniku</label>
+        <p class="form-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close>Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Okno zestawu -->
+  <dialog id="bundleDialog" class="modal">
+    <form id="bundleForm" method="dialog">
+      <header class="modal-head">
+        <h2 id="bundleDialogTitle">Dodaj zestaw</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </header>
+      <div class="modal-body">
+        <label>Nazwa zestawu<input name="name" required maxlength="60" placeholder="np. Diamentowy set"></label>
+        <label>Opis<input name="description" maxlength="300" placeholder="Krótki opis zestawu"></label>
+        <div class="icon-field">
+          <div class="icon-slot lg" id="bundleIconPreview"></div>
+          <label class="grow">Ikona<input name="icon" maxlength="500" placeholder="puste = ikona pierwszego przedmiotu"></label>
+        </div>
+        <fieldset class="prices">
+          <legend>Przedmioty w zestawie</legend>
+          <div class="price-rows" id="bundleItems"></div>
+          <button type="button" class="btn btn-ghost" id="addBundleItem">+ Dodaj przedmiot</button>
+        </fieldset>
+        <fieldset class="prices">
+          <legend>Cena zestawu</legend>
+          <div class="price-rows" id="bundlePrices"></div>
+          <button type="button" class="btn btn-ghost add-price">+ Dodaj przedmiot do ceny</button>
+        </fieldset>
+        <div class="discount-preview" id="bundleSummary"></div>
+        <label class="check"><input type="checkbox" name="visible" checked> Widoczny w cenniku</label>
+        <p class="form-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close>Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <datalist id="itemNames"></datalist>
+
+  <script src="js/config.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
