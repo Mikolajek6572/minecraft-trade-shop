@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://minecraft-trade-shop.mikolaj1657.workers.dev http://localhost:8787; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data: http://localhost:8787; connect-src 'self' https://minecraft-trade-shop.mikolaj1657.workers.dev http://localhost:8787; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>Panel admina – Minecraft Trade Shop</title>
@@ -12,7 +12,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/shop.css">
   <link rel="stylesheet" href="css/admin.css">
+  <link rel="stylesheet" href="css/admin-live.css">
 </head>
 <body>
   <!-- Logowanie -->
@@ -46,15 +48,54 @@
     </header>
 
     <main class="wrap admin-main">
+      <button class="urgent-bar" id="urgentBar" hidden></button>
       <nav class="tabs" role="tablist">
-        <button class="tab active" data-tab="items" role="tab">Przedmioty</button>
+        <button class="tab active" data-tab="orders" role="tab">Zamówienia <span class="tab-badge" id="ordersBadge" hidden></span></button>
+        <button class="tab" data-tab="chat" role="tab">Czat <span class="tab-badge" id="chatBadge" hidden></span></button>
+        <button class="tab" data-tab="items" role="tab">Przedmioty</button>
         <button class="tab" data-tab="bundles" role="tab">Zestawy i rabaty</button>
         <button class="tab" data-tab="categories" role="tab">Kategorie</button>
         <button class="tab" data-tab="settings" role="tab">Ustawienia</button>
       </nav>
 
+      <!-- Zamowienia -->
+      <section class="tab-panel" id="tab-orders">
+        <div class="stats" id="orderStats"></div>
+        <div class="panel-bar">
+          <div class="chips" id="orderFilter">
+            <button class="chip active" data-f="active">Do zrobienia</button>
+            <button class="chip" data-f="new">Nowe</button>
+            <button class="chip" data-f="in_progress">W realizacji</button>
+            <button class="chip" data-f="done">Zrealizowane</button>
+            <button class="chip" data-f="cancelled">Anulowane</button>
+            <button class="chip" data-f="all">Wszystkie</button>
+          </div>
+          <label class="search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="orderSearch" type="search" placeholder="Szukaj po nicku, numerze, przedmiocie…" aria-label="Szukaj zamówień">
+          </label>
+        </div>
+        <div id="orderList" class="order-list"></div>
+      </section>
+
+      <!-- Czat -->
+      <section class="tab-panel" id="tab-chat" hidden>
+        <div class="chat-admin">
+          <div class="conv-list-wrap">
+            <label class="search">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+              <input id="convSearch" type="search" placeholder="Szukaj nicku…" aria-label="Szukaj rozmów">
+            </label>
+            <div id="convList" class="conv-list"></div>
+          </div>
+          <div class="conv-view" id="convView">
+            <p class="empty">Wybierz rozmowę z listy.</p>
+          </div>
+        </div>
+      </section>
+
       <!-- Przedmioty -->
-      <section class="tab-panel" id="tab-items">
+      <section class="tab-panel" id="tab-items" hidden>
         <div class="panel-bar">
           <label class="search">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -97,6 +138,13 @@
           <form id="settingsForm" class="box">
             <h2>Sklep</h2>
             <label>Nazwa sklepu<input name="shopName" maxlength="60" required></label>
+            <label class="check"><input type="checkbox" name="expressEnabled"> Natychmiastowa dostawa dostępna</label>
+            <div class="form-row">
+              <label>Dopłata<input name="expressAmount" type="number" min="1" max="100000" required></label>
+              <label class="grow">Przedmiot dopłaty<input name="expressCurrency" maxlength="60" list="itemNames" required></label>
+            </div>
+            <label class="check"><input type="checkbox" name="aiEnabled"> Asystent AI odpowiada w czacie</label>
+            <label class="check"><input type="checkbox" name="sound" id="soundToggle"> Dźwięk przy nowym zamówieniu i wiadomości (to urządzenie)</label>
             <button class="btn btn-primary" type="submit">Zapisz</button>
           </form>
           <form id="passwordForm" class="box" autocomplete="off">

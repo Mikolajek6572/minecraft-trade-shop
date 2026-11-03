@@ -43,7 +43,7 @@ const MTS = (() => {
     clear() { try { localStorage.removeItem(TOKEN_KEY); } catch { /* tryb prywatny */ } },
   };
 
-  async function api(path, { method = 'GET', body } = {}) {
+  async function api(path, { method = 'GET', body, headers: extra = {} } = {}) {
     const t = token.get();
     let r;
     try {
@@ -52,6 +52,7 @@ const MTS = (() => {
         headers: {
           ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
           ...(t ? { Authorization: `Bearer ${t}` } : {}),
+          ...extra,
         },
         body: body !== undefined ? JSON.stringify(body) : undefined,
       });

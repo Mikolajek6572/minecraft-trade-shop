@@ -192,6 +192,13 @@ export async function deleteBundle(db, id) {
 
 // ---------- ustawienia ----------
 export async function saveSettings(db, body) {
-  const shopName = str(body.shopName, 'Nazwa sklepu', { max: 60 });
-  await db.prepare("INSERT INTO settings (key, value) VALUES ('shop_name', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(shopName).run();
+  const values = { shop_name: str(body.shopName, 'Nazwa sklepu', { max: 60 }) };
+  if (body.expressEnabled !== undefined) values.express_enabled = body.expressEnabled ? '1' : '0';
+  if (body.expressFee !== undefined) {
+    values.express_fee_amount = String(int(body.expressFee?.amount, 'Dopłata za natychmiastową dostawę', { max: 100_000 }));
+    values.express_fee_currency = str(body.expressFee?.currency, 'Przedmiot dopłaty', { max: 60 });
+  }
+  if (body.aiEnabled !== undefined) values.ai_enabled = body.aiEnabled ? '1' : '0';
+  await db.batch(Object.entries(values).map(([k, v]) =>
+    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind(k, v)));
 }

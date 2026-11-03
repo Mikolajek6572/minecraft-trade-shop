@@ -45,6 +45,9 @@ MinecraftTradeShop/
 | `admins` | konta adminów (hasło tylko jako hash PBKDF2) |
 | `sessions` | aktywne sesje (w bazie tylko hash tokenu) |
 | `login_attempts` | limit błędnych logowań |
+| `conversations`, `messages` | czat z graczami (+ notatka admina, czy asystent odpowiada) |
+| `orders` | zamówienia: nick, pozycje z cenami z chwili zamówienia, suma, natychmiastowa dostawa, status |
+| `rate_limits` | limity spamu (zamówienia, czat) |
 | `settings` | ustawienia, np. nazwa sklepu |
 
 Kopia zapasowa: w folderze `worker` uruchom `npm run backup` (zapisze `backup.sql`).
@@ -78,6 +81,25 @@ Potem wchodzisz na `admin.html` i się logujesz. Hasło zmienisz też w panelu: 
 - Zmiany przyjmowane są tylko z adresów z `ALLOWED_ORIGINS` (CORS) i tylko z ważnym tokenem.
 - Limit: 8 błędnych logowań na 15 minut z jednego IP.
 - Wszystkie dane są walidowane na serwerze, a w HTML-u escapowane. Strona ma Content-Security-Policy bez inline JS.
+
+## Zamówienia i czat
+
+**Dla graczy (strona):**
+- Przycisk **Zamów** przy każdym przedmiocie i zestawie dodaje go do **koszyka** (prawy dolny róg).
+- W koszyku trzeba wpisać **nick z Minecrafta** – bez niego zamówienie nie przejdzie. Nick się zapamiętuje.
+- **Natychmiastowa dostawa** – opcja z dopłatą (ustawiasz w panelu, domyślnie 5 Iron Ingot). Takie zamówienie świeci się w panelu na złoto, a nad zakładkami miga pasek „kliknij i działaj”.
+- Zakładka **Moje zamówienia** pokazuje numer i aktualny status każdego zamówienia z tego urządzenia.
+- **Czat** – gracz podaje nick i pisze. **Asystent AI** (Cloudflare Workers AI, model Llama) od razu odpowiada na pytania o ceny – zna cały cennik, ale nie może nic zmieniać ani zamawiać. Gracz widzi, czy admin jest online.
+
+**Dla admina (panel):**
+- **Zamówienia:** statystyki (nowe, pilne, dzisiaj, najczęściej zamawiane), filtry, wyszukiwarka, przyciski statusów (Przyjmij → Dane – gotowe / Anuluj), kopiowanie nicku, notatka do każdego zamówienia, głowa gracza.
+- **Czat:** lista rozmów z nieprzeczytanymi, odpowiadanie, szybkie odpowiedzi („Już daję!”), **notatka – co chce kupić**, lista zamówień tego gracza. Gdy odpiszesz, asystent w tej rozmowie milknie (włączysz go z powrotem przełącznikiem).
+- Panel sam się odświeża co 5 s, **piszczy** przy nowym zamówieniu lub wiadomości (pilne zamówienie = głośny alarm), a w tytule karty widać licznik.
+- Zmiana statusu zamówienia sama pisze graczowi w czacie, jeśli go ma.
+- **Ustawienia:** włączanie natychmiastowej dostawy i jej dopłata, włączanie asystenta AI, dźwięk.
+
+Ochrona przed spamem: max 10 zamówień na godzinę z jednego IP, limit wiadomości w czacie i nowych rozmów.
+Asystent korzysta z darmowego limitu Workers AI – gdy się skończy, gracz dostaje info, że admin odpisze.
 
 ## Panel admina – co umie
 
@@ -152,6 +174,12 @@ Każda zmiana w `docs/` wypchnięta na `main` sama aktualizuje stronę. Zmiany w
 | GET | `/api/admin/catalog` | admin (z ukrytymi pozycjami) |
 | POST / PUT / DELETE | `/api/admin/items[/:id]`, `/categories[/:id]`, `/bundles[/:id]` | admin |
 | PUT | `/api/admin/settings` | admin |
+| POST | `/api/orders` | strona (nick wymagany) |
+| GET | `/api/orders/<numer>` | strona – status zamówienia |
+| POST | `/api/chat/start`, GET/POST `/api/chat/messages` | strona (token rozmowy w `X-Chat-Token`) |
+| GET | `/api/admin/inbox`, `/api/admin/orders` | admin |
+| PUT / DELETE | `/api/admin/orders/:id` | admin |
+| GET / PUT / DELETE | `/api/admin/conversations/:id`, POST `.../messages` | admin |
 
 ## Dodawanie nowych funkcji
 

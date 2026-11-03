@@ -1,6 +1,9 @@
 // API Minecraft Trade Shop: cennik, logowanie admina, panel, ikony
 import * as catalog from './catalog.js';
 import * as auth from './auth.js';
+import * as orders from './orders.js';
+import * as chat from './chat.js';
+import { getSettings, ip } from './shop.js';
 
 const { HttpError } = catalog;
 
@@ -17,7 +20,7 @@ function cors(env, request, isPublic) {
   if (origin) Object.assign(h, {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Chat-Token',
     'Access-Control-Max-Age': '86400',
   });
   else if (isPublic) h['Access-Control-Allow-Origin'] = '*';
@@ -85,23 +88,34 @@ async function route(request, env, ctx) {
   const iconMatch = path.match(/^\/icons\/(.+)\.png$/);
   if (method === 'GET' && iconMatch) return icon(request, ctx, decodeURIComponent(iconMatch[1]));
 
-  if (method === 'GET' && path === '/api/catalog') return json(await catalog.getCatalog(db), 200, { 'Cache-Control': 'no-cache' });
+  if (method === 'GET' && path === '/api/catalog') {
+    const [data, shop] = await Promise.all([catalog.getCatalog(db), getSettings(db)]);
+    return json({ ...data, shop }, 200, { 'Cache-Control': 'no-cache' });
+  }
 
   // Wszystko ponizej tylko z dozwolonych stron (GitHub Pages / lokalnie)
   if (!allowedOrigin(env, request)) throw new HttpError(403, 'Niedozwolona strona');
 
+  // ---------- zamowienia i czat klienta ----------
+  if (method === 'POST' && path === '/api/orders') return json(await orders.createOrder(env, request, await readBody(request), ip(request)), 201);
+  const orderMatch = path.match(/^\/api\/orders\/([A-Za-z0-9]+)$/);
+  if (method === 'GET' && orderMatch) return json(await orders.getOrder(db, orderMatch[1].toUpperCase()));
+  if (method === 'POST' && path === '/api/chat/start') return json(await chat.startChat(env, await readBody(request), ip(request)), 201);
+  if (method === 'GET' && path === '/api/chat/messages') return json(await chat.getMessages(env, request, url.searchParams.get('after')));
+  if (method === 'POST' && path === '/api/chat/messages') return json(await chat.sendMessage(env, request, await readBody(request), ip(request), ctx), 201);
+
   if (method === 'POST' && path === '/api/auth/login') {
-    const ip = request.headers.get('CF-Connecting-IP') || 'local';
-    if (await auth.loginLimited(env, ip)) throw new HttpError(429, 'Za dużo prób. Spróbuj za 15 minut');
+    const clientIp = ip(request);
+    if (await auth.loginLimited(env, clientIp)) throw new HttpError(429, 'Za dużo prób. Spróbuj za 15 minut');
     const body = await readBody(request);
     const username = typeof body.username === 'string' ? body.username.trim() : '';
     const admin = username && await db.prepare('SELECT id, username, password_hash FROM admins WHERE username = ?').bind(username).first();
     const ok = await auth.verifyPassword(String(body.password || ''), admin ? admin.password_hash : auth.dummyHash());
     if (!admin || !ok) {
-      await auth.loginFailed(env, ip);
+      await auth.loginFailed(env, clientIp);
       throw new HttpError(401, 'Zły login lub hasło');
     }
-    await auth.loginSucceeded(env, ip);
+    await auth.loginSucceeded(env, clientIp);
     const { token, expires } = await auth.createSession(env, admin.id);
     return json({ username: admin.username, token, expires });
   }
@@ -130,7 +144,34 @@ async function route(request, env, ctx) {
     return json({ ok: true });
   }
 
-  if (method === 'GET' && path === '/api/admin/catalog') return json(await catalog.getCatalog(db, { includeHidden: true }));
+  if (method === 'GET' && path === '/api/admin/catalog') {
+    const [data, shop] = await Promise.all([catalog.getCatalog(db, { includeHidden: true }), getSettings(db)]);
+    return json({ ...data, shop });
+  }
+
+  // Skrzynka: panel pyta co kilka sekund, przy okazji zapisuje ze admin jest online
+  if (method === 'GET' && path === '/api/admin/inbox') {
+    await db.prepare("INSERT INTO settings (key, value) VALUES ('admin_seen', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(Date.now())).run();
+    const [conversations, stats] = await Promise.all([chat.listConversations(db), orders.orderStats(db)]);
+    return json({ conversations, stats });
+  }
+
+  if (method === 'GET' && path === '/api/admin/orders') return json(await orders.listOrders(db, url.searchParams.get('status')));
+  const ord = path.match(/^\/api\/admin\/orders\/([^/]+)$/);
+  if (ord && method === 'PUT') { await orders.updateOrder(db, parseId(ord[1]), await readBody(request)); return json({ ok: true }); }
+  if (ord && method === 'DELETE') return (await orders.deleteOrder(db, parseId(ord[1]))) ? json({ ok: true }) : json({ error: 'Nie znaleziono' }, 404);
+
+  const conv = path.match(/^\/api\/admin\/conversations\/([^/]+)(\/messages)?$/);
+  if (conv) {
+    const id = parseId(conv[1]);
+    if (method === 'GET' && !conv[2]) {
+      const c = await chat.adminConversation(db, id);
+      return json({ ...c, orders: await orders.ordersForNick(db, c.nick) });
+    }
+    if (method === 'POST' && conv[2]) return json(await chat.adminSend(db, id, await readBody(request)), 201);
+    if (method === 'PUT' && !conv[2]) { await chat.updateConversation(db, id, await readBody(request)); return json({ ok: true }); }
+    if (method === 'DELETE' && !conv[2]) return (await chat.deleteConversation(db, id)) ? json({ ok: true }) : json({ error: 'Nie znaleziono' }, 404);
+  }
 
   if (method === 'PUT' && path === '/api/admin/settings') {
     await catalog.saveSettings(db, await readBody(request));

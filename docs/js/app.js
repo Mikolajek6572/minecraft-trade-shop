@@ -73,11 +73,15 @@
             <div class="new-price"><span class="muted">Cena zestawu</span> ${priceChips(b.prices)}</div>
             ${savings.length ? `<div class="save">Oszczędzasz ${savings.map((s) => `<b>${s.approx ? '≈ ' : ''}${s.amount} ${esc(s.currency)}</b>`).join(', ')} kupując cały komplet!</div>` : ''}
           </div>
-          <button class="btn btn-ghost copy-btn" data-copy="${esc(text)}">${copyIcon} Kopiuj cenę</button>
+          <div class="bundle-actions">
+            <button class="btn btn-primary add-btn" data-add="bundle:${b.id}">${cartIcon} Zamów zestaw</button>
+            <button class="btn btn-ghost copy-btn" data-copy="${esc(text)}">${copyIcon} Kopiuj cenę</button>
+          </div>
         </article>`;
     }).join('');
   }
 
+  const cartIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/></svg>';
   const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 
   function renderCategories() {
@@ -127,7 +131,10 @@
           <div class="price">${priceChips(i.prices)}</div>
           <div class="item-foot">
             <span class="muted small" title="Wartość przeliczona na najprostszy przedmiot">${showValue ? `≈ ${fmt(v.value)} ${esc(base[0])}` : ''}</span>
-            <button class="icon-btn copy-btn" data-copy="${esc(text)}" aria-label="Kopiuj cenę ${esc(i.name)}" title="Kopiuj cenę">${copyIcon}</button>
+            <div class="item-actions">
+              <button class="icon-btn copy-btn" data-copy="${esc(text)}" aria-label="Kopiuj cenę ${esc(i.name)}" title="Kopiuj cenę">${copyIcon}</button>
+              <button class="btn btn-primary btn-sm add-btn" data-add="item:${i.id}" aria-label="Zamów ${esc(i.name)}">${cartIcon} Zamów</button>
+            </div>
           </div>
         </article>`;
     }).join('');
@@ -143,9 +150,16 @@
     renderItems();
   }
 
+  let lastJson = '';
   async function load() {
     try {
-      state.data = await api('/api/catalog');
+      const data = await api('/api/catalog');
+      // Koszyk i czat dostaja swieze dane, a cennik przerysowuje sie tylko gdy cos sie zmienilo
+      window.dispatchEvent(new CustomEvent('mts:data', { detail: data }));
+      const json = JSON.stringify({ ...data, shop: null });
+      if (json === lastJson) return;
+      lastJson = json;
+      state.data = data;
       if (state.category !== 'all' && !state.data.categories.some((c) => String(c.id) === state.category)) state.category = 'all';
       render();
     } catch (e) {

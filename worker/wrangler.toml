@@ -13,3 +13,7 @@ binding = "DB"
 database_name = "minecraft-trade-shop"
 database_id = "61a302aa-3833-46e2-ab11-af981a2d5446"
 migrations_dir = "migrations"
+
+# Asystent w czacie (Workers AI)
+[ai]
+binding = "AI"
