@@ -6,6 +6,9 @@ import { conversationFromRequest, addSystemMessage } from './chat.js';
 export const STATUSES = { new: 'Nowe', in_progress: 'W realizacji', done: 'Zrealizowane', cancelled: 'Anulowane' };
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+export const lineName = (l) => l.enchants?.length ? `${l.name} (${l.enchants.map((e) => (e.maxLevel === 1 ? e.name : `${e.name} ${ROMAN[e.level] || e.level}`)).join(', ')})` : l.name;
+
 function newCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(8));
   return [...bytes].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
@@ -38,33 +41,59 @@ export async function createOrder(env, request, body, clientIp) {
   if (body.lines.length > 30) throw new HttpError(400, 'Max. 30 pozycji w zamówieniu');
   const wanted = new Map();
   for (const l of body.lines) {
-    const type = l?.type === 'bundle' ? 'bundle' : 'item';
-    const id = Number(l?.id), qty = Number(l?.qty);
-    if (!Number.isInteger(id) || id < 1) throw new HttpError(400, 'Zła pozycja w koszyku');
+    const type = l?.type === 'bundle' || l?.type === 'book' ? l.type : 'item';
+    const id = type === 'book' ? 0 : Number(l?.id), qty = Number(l?.qty);
+    if (type !== 'book' && (!Number.isInteger(id) || id < 1)) throw new HttpError(400, 'Zła pozycja w koszyku');
     if (!Number.isInteger(qty) || qty < 1 || qty > 999) throw new HttpError(400, 'Ilość musi być od 1 do 999');
-    const k = `${type}:${id}`;
-    wanted.set(k, { type, id, qty: Math.min(999, (wanted.get(k)?.qty || 0) + qty) });
+    const ench = (Array.isArray(l?.ench) ? l.ench : []).map((e) => ({ id: Number(e?.id), level: Number(e?.level) }));
+    if (ench.length > 12) throw new HttpError(400, 'Za dużo enchantów na jednym przedmiocie');
+    if (ench.some((e) => !Number.isInteger(e.id) || !Number.isInteger(e.level) || e.level < 1)) throw new HttpError(400, 'Zły enchant');
+    if (new Set(ench.map((e) => e.id)).size !== ench.length) throw new HttpError(400, 'Ten sam enchant jest dwa razy');
+    if (type === 'bundle' && ench.length) throw new HttpError(400, 'Do zestawu nie da się dodać enchantów');
+    if (type === 'book' && !ench.length) throw new HttpError(400, 'Księga musi mieć przynajmniej 1 enchant');
+    ench.sort((x, y) => x.id - y.id);
+    const k = `${type}:${id}:${ench.map((e) => `${e.id}.${e.level}`).join(',')}`;
+    wanted.set(k, { type, id, ench, qty: Math.min(999, (wanted.get(k)?.qty || 0) + qty) });
   }
 
   // Ceny zawsze z bazy, nie z przegladarki
   const itemIds = [...wanted.values()].filter((w) => w.type === 'item').map((w) => w.id);
   const bundleIds = [...wanted.values()].filter((w) => w.type === 'bundle').map((w) => w.id);
   const ph = (a) => a.map(() => '?').join(',') || 'NULL';
-  const [items, itemPrices, bundles, bundlePrices] = await db.batch([
+  const [items, itemPrices, bundles, bundlePrices, enchants, enchantPrices] = await db.batch([
     db.prepare(`SELECT id, name FROM items WHERE visible = 1 AND id IN (${ph(itemIds)})`).bind(...itemIds),
     db.prepare(`SELECT item_id, currency, amount FROM item_prices WHERE item_id IN (${ph(itemIds)}) ORDER BY sort, id`).bind(...itemIds),
     db.prepare(`SELECT id, name FROM bundles WHERE visible = 1 AND id IN (${ph(bundleIds)})`).bind(...bundleIds),
     db.prepare(`SELECT bundle_id, currency, amount FROM bundle_prices WHERE bundle_id IN (${ph(bundleIds)}) ORDER BY sort, id`).bind(...bundleIds),
+    db.prepare('SELECT id, name, max_level, book, item_ids FROM enchants WHERE visible = 1'),
+    db.prepare('SELECT enchant_id, currency, amount FROM enchant_prices ORDER BY sort, id'),
   ]);
 
   const lines = [];
   for (const w of wanted.values()) {
-    const src = w.type === 'item' ? items.results.find((i) => i.id === w.id) : bundles.results.find((b) => b.id === w.id);
-    if (!src) throw new HttpError(400, 'Coś z koszyka nie jest już w ofercie. Odśwież stronę');
-    const prices = (w.type === 'item'
-      ? itemPrices.results.filter((p) => p.item_id === w.id)
-      : bundlePrices.results.filter((p) => p.bundle_id === w.id)).map(({ currency, amount }) => ({ currency, amount }));
-    lines.push({ type: w.type, id: w.id, name: src.name, qty: w.qty, prices });
+    let name, base;
+    if (w.type === 'book') {
+      name = 'Enchanted Book';
+      base = [];
+    } else {
+      const src = w.type === 'item' ? items.results.find((i) => i.id === w.id) : bundles.results.find((b) => b.id === w.id);
+      if (!src) throw new HttpError(400, 'Coś z koszyka nie jest już w ofercie. Odśwież stronę');
+      name = src.name;
+      base = (w.type === 'item'
+        ? itemPrices.results.filter((p) => p.item_id === w.id)
+        : bundlePrices.results.filter((p) => p.bundle_id === w.id)).map(({ currency, amount }) => ({ currency, amount }));
+    }
+    const enchList = [];
+    const parts = [{ prices: base, qty: 1 }];
+    for (const e of w.ench) {
+      const en = enchants.results.find((x) => x.id === e.id);
+      if (!en) throw new HttpError(400, 'Jakiś enchant nie jest już w ofercie. Odśwież stronę');
+      if (e.level > en.max_level) throw new HttpError(400, `${en.name} ma maks. poziom ${en.max_level}`);
+      if (w.type === 'book' ? !en.book : !JSON.parse(en.item_ids).includes(w.id)) throw new HttpError(400, `${en.name} nie pasuje do: ${name}`);
+      enchList.push({ name: en.name, level: e.level, maxLevel: en.max_level });
+      parts.push({ prices: enchantPrices.results.filter((p) => p.enchant_id === e.id), qty: e.level });
+    }
+    lines.push({ type: w.type, id: w.id, name, qty: w.qty, prices: sumPrices(parts), ...(enchList.length ? { enchants: enchList } : {}) });
   }
 
   const settings = await getSettings(db);
@@ -84,7 +113,7 @@ export async function createOrder(env, request, body, clientIp) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
     .bind(code, nick, JSON.stringify(lines), JSON.stringify(total), express ? 1 : 0, JSON.stringify(fee), note, conv?.id ?? null, now, now).first();
 
-  if (conv) await addSystemMessage(db, conv.id, `Złożono zamówienie #${code}${express ? ' (NATYCHMIASTOWA DOSTAWA)' : ''}: ${lines.map((l) => `${l.qty}× ${l.name}`).join(', ')}`);
+  if (conv) await addSystemMessage(db, conv.id, `Złożono zamówienie #${code}${express ? ' (NATYCHMIASTOWA DOSTAWA)' : ''}: ${lines.map((l) => `${l.qty}× ${lineName(l)}`).join(', ')}`);
   return view(row);
 }
 

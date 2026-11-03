@@ -36,6 +36,12 @@
       <div id="bundles" class="bundle-grid"></div>
     </section>
 
+    <section id="enchantsSection" class="enchants" hidden aria-labelledby="enchTitle">
+      <h2 id="enchTitle" class="section-title"><span class="dot dot-ench"></span>Enchanty i księgi</h2>
+      <p class="muted section-sub">Cena jest za 1 poziom. Enchant dodasz do przedmiotu przyciskiem „Enchanty” albo kupisz jako księgę.</p>
+      <div id="enchants" class="ench-grid"></div>
+    </section>
+
     <section aria-labelledby="priceTitle">
       <div class="toolbar">
         <h2 id="priceTitle" class="section-title"><span class="dot"></span>Aktualny cennik</h2>
@@ -152,6 +158,28 @@
       </form>
     </div>
   </aside>
+
+  <!-- Wybor enchantow -->
+  <dialog id="enchDialog" class="modal ench-modal">
+    <form id="enchForm" method="dialog">
+      <header class="modal-head">
+        <div class="ench-head">
+          <div class="icon-slot" id="enchTargetIcon"></div>
+          <div><h2 id="enchTitleModal">Enchanty</h2><span class="muted small" id="enchSub"></span></div>
+        </div>
+        <button type="button" class="icon-btn" data-close-ench aria-label="Zamknij">✕</button>
+      </header>
+      <div class="modal-body">
+        <div id="enchList" class="ench-list"></div>
+        <div class="ench-sum"><span class="muted">Cena za sztukę</span><div id="enchTotal" class="price"></div></div>
+        <p class="form-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close-ench>Anuluj</button>
+        <button type="submit" class="btn btn-primary">Dodaj do koszyka</button>
+      </footer>
+    </form>
+  </dialog>
 
   <script src="js/config.js"></script>
   <script src="js/common.js"></script>

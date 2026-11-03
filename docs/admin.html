@@ -54,6 +54,7 @@
         <button class="tab" data-tab="chat" role="tab">Czat <span class="tab-badge" id="chatBadge" hidden></span></button>
         <button class="tab" data-tab="items" role="tab">Przedmioty</button>
         <button class="tab" data-tab="bundles" role="tab">Zestawy i rabaty</button>
+        <button class="tab" data-tab="enchants" role="tab">Enchanty</button>
         <button class="tab" data-tab="categories" role="tab">Kategorie</button>
         <button class="tab" data-tab="settings" role="tab">Ustawienia</button>
       </nav>
@@ -120,6 +121,15 @@
           <button class="btn btn-primary" id="addBundleBtn">+ Dodaj zestaw / rabat</button>
         </div>
         <div id="bundleList" class="admin-cards"></div>
+      </section>
+
+      <!-- Enchanty -->
+      <section class="tab-panel" id="tab-enchants" hidden>
+        <div class="panel-bar">
+          <p class="muted grow">Cena jest za 1 poziom. Gracz dodaje enchant do zaznaczonych przedmiotów w koszyku albo kupuje go jako księgę.</p>
+          <button class="btn btn-primary" id="addEnchBtn">+ Dodaj enchant</button>
+        </div>
+        <div id="enchList" class="admin-cards"></div>
       </section>
 
       <!-- Kategorie -->
@@ -220,6 +230,44 @@
           <button type="button" class="btn btn-ghost add-price">+ Dodaj przedmiot do ceny</button>
         </fieldset>
         <div class="discount-preview" id="bundleSummary"></div>
+        <label class="check"><input type="checkbox" name="visible" checked> Widoczny w cenniku</label>
+        <p class="form-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close>Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Okno enchantu -->
+  <dialog id="enchDialog" class="modal">
+    <form id="enchForm" method="dialog">
+      <header class="modal-head">
+        <h2 id="enchDialogTitle">Dodaj enchant</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-row">
+          <label class="grow">Nazwa enchantu<input name="name" required maxlength="40" placeholder="np. Sharpness"></label>
+          <label>Maks. poziom<select name="maxLevel"><option>1</option><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></label>
+        </div>
+        <fieldset class="prices">
+          <legend>Cena za 1 poziom</legend>
+          <div class="price-rows" id="enchPrices"></div>
+          <button type="button" class="btn btn-ghost add-price">+ Dodaj przedmiot do ceny</button>
+        </fieldset>
+        <fieldset class="prices">
+          <legend>Do jakich przedmiotów można go dodać</legend>
+          <div class="ench-items-tools">
+            <input type="search" id="enchItemSearch" placeholder="Szukaj przedmiotu…" aria-label="Szukaj przedmiotu">
+            <button type="button" class="btn btn-ghost btn-sm" data-ench-all="1">Zaznacz widoczne</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-ench-all="0">Odznacz wszystko</button>
+          </div>
+          <div class="ench-items" id="enchItems"></div>
+        </fieldset>
+        <label class="check"><input type="checkbox" name="book" checked> Można kupić jako księgę z enchantem</label>
+        <label>Opis (opcjonalnie)<input name="note" maxlength="200" placeholder="np. nie łączy się ze Smite"></label>
         <label class="check"><input type="checkbox" name="visible" checked> Widoczny w cenniku</label>
         <p class="form-error" role="alert"></p>
       </div>

@@ -57,7 +57,7 @@ async function unique(promise, msg) {
 // ---------- odczyt ----------
 export async function getCatalog(db, { includeHidden = false } = {}) {
   const vis = includeHidden ? '' : 'WHERE visible = 1';
-  const [cats, items, itemPrices, bundles, bundleItems, bundlePrices, shop] = await db.batch([
+  const [cats, items, itemPrices, bundles, bundleItems, bundlePrices, shop, enchants, enchantPrices] = await db.batch([
     db.prepare('SELECT id, name, icon, sort FROM categories ORDER BY sort, name'),
     db.prepare(`SELECT id, name, icon, category_id, note, visible, sort, updated_at FROM items ${vis} ORDER BY sort, name`),
     db.prepare('SELECT item_id, currency, amount FROM item_prices ORDER BY sort, id'),
@@ -65,6 +65,8 @@ export async function getCatalog(db, { includeHidden = false } = {}) {
     db.prepare(`SELECT bi.bundle_id, bi.item_id, bi.qty, i.name FROM bundle_items bi JOIN items i ON i.id = bi.item_id ORDER BY i.sort, i.name`),
     db.prepare('SELECT bundle_id, currency, amount FROM bundle_prices ORDER BY sort, id'),
     db.prepare("SELECT value FROM settings WHERE key = 'shop_name'"),
+    db.prepare(`SELECT id, name, max_level, book, item_ids, note, visible, sort FROM enchants ${vis} ORDER BY sort, name`),
+    db.prepare('SELECT enchant_id, currency, amount FROM enchant_prices ORDER BY sort, id'),
   ]);
 
   const byItem = new Map();
@@ -82,6 +84,11 @@ export async function getCatalog(db, { includeHidden = false } = {}) {
       items: bundleItems.results.filter((x) => x.bundle_id === b.id).map(({ item_id, qty, name }) => ({ item_id, qty, name })),
       prices: bundlePrices.results.filter((x) => x.bundle_id === b.id).map(({ currency, amount }) => ({ currency, amount })),
     })).filter((b) => includeHidden || b.items.length > 0), // pusty zestaw (usuniete przedmioty) nie trafia do cennika
+    enchants: enchants.results.map((e) => ({
+      id: e.id, name: e.name, maxLevel: e.max_level, book: !!e.book, note: e.note, visible: !!e.visible, sort: e.sort,
+      itemIds: JSON.parse(e.item_ids || '[]'),
+      prices: enchantPrices.results.filter((p) => p.enchant_id === e.id).map(({ currency, amount }) => ({ currency, amount })),
+    })),
   };
 }
 
@@ -188,6 +195,40 @@ export async function saveBundle(db, id, body) {
 
 export async function deleteBundle(db, id) {
   return (await db.prepare('DELETE FROM bundles WHERE id = ?').bind(id).run()).meta.changes > 0;
+}
+
+// ---------- enchanty ----------
+export async function saveEnchant(db, id, body) {
+  const name = str(body.name, 'Nazwa enchantu', { max: 40 });
+  const maxLevel = int(body.maxLevel, 'Maks. poziom', { max: 10 });
+  const note = str(body.note, 'Opis', { max: 200, required: false });
+  const ep = prices(body.prices);
+  const book = body.book === false ? 0 : 1;
+  const visible = body.visible === false ? 0 : 1;
+  const itemIds = [...new Set((Array.isArray(body.itemIds) ? body.itemIds : []).map((v) => int(v, 'Przedmiot')))];
+  if (itemIds.length) {
+    const found = await db.prepare(`SELECT COUNT(*) AS c FROM items WHERE id IN (${itemIds.map(() => '?').join(',')})`).bind(...itemIds).first();
+    if (found.c !== itemIds.length) throw bad('Nie ma takiego przedmiotu');
+  }
+  if (!book && !itemIds.length) throw bad('Zaznacz przedmioty albo „można kupić jako księgę”');
+  const ref = '(SELECT id FROM enchants WHERE name = ? COLLATE NOCASE)';
+  const stmts = [];
+  if (id) {
+    if (!(await db.prepare('SELECT 1 FROM enchants WHERE id = ?').bind(id).first())) throw new HttpError(404, 'Nie ma takiego enchantu');
+    stmts.push(db.prepare('UPDATE enchants SET name = ?, max_level = ?, book = ?, item_ids = ?, note = ?, visible = ? WHERE id = ?')
+      .bind(name, maxLevel, book, JSON.stringify(itemIds), note, visible, id));
+    stmts.push(db.prepare('DELETE FROM enchant_prices WHERE enchant_id = ?').bind(id));
+  } else {
+    stmts.push(db.prepare(`INSERT INTO enchants (name, max_level, book, item_ids, note, visible, sort)
+      VALUES (?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort), -1) + 1 FROM enchants))`).bind(name, maxLevel, book, JSON.stringify(itemIds), note, visible));
+  }
+  ep.forEach((p, i) => stmts.push(db.prepare(`INSERT INTO enchant_prices (enchant_id, currency, amount, sort) VALUES (${ref}, ?, ?, ?)`).bind(name, p.currency, p.amount, i)));
+  await unique(db.batch(stmts), 'Enchant o takiej nazwie już istnieje');
+  return id || (await db.prepare('SELECT id FROM enchants WHERE name = ? COLLATE NOCASE').bind(name).first()).id;
+}
+
+export async function deleteEnchant(db, id) {
+  return (await db.prepare('DELETE FROM enchants WHERE id = ?').bind(id).run()).meta.changes > 0;
 }
 
 // ---------- ustawienia ----------

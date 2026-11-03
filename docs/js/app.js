@@ -1,6 +1,6 @@
 // Publiczny cennik
 (() => {
-  const { esc, iconHtml, api, valueCalculator, priceText, toast, copy } = MTS;
+  const { esc, iconHtml, api, valueCalculator, priceText, toast, copy, roman } = MTS;
   const $ = (s) => document.querySelector(s);
 
   const state = { data: null, category: 'all', q: '', sort: 'default' };
@@ -82,6 +82,8 @@
   }
 
   const cartIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.7 12.4a1.5 1.5 0 0 0 1.5 1.1h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/></svg>';
+  const sparkIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>';
+  const enchFor = (itemId) => state.data.enchants?.some((e) => e.itemIds.includes(itemId));
   const copyIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 
   function renderCategories() {
@@ -133,6 +135,7 @@
             <span class="muted small" title="Wartość przeliczona na najprostszy przedmiot">${showValue ? `≈ ${fmt(v.value)} ${esc(base[0])}` : ''}</span>
             <div class="item-actions">
               <button class="icon-btn copy-btn" data-copy="${esc(text)}" aria-label="Kopiuj cenę ${esc(i.name)}" title="Kopiuj cenę">${copyIcon}</button>
+              ${enchFor(i.id) ? `<button class="btn btn-ghost btn-sm ench-btn" data-ench-item="${i.id}" title="Zamów z enchantami">${sparkIcon} Enchanty</button>` : ''}
               <button class="btn btn-primary btn-sm add-btn" data-add="item:${i.id}" aria-label="Zamów ${esc(i.name)}">${cartIcon} Zamów</button>
             </div>
           </div>
@@ -142,10 +145,33 @@
     $('#grid').querySelectorAll('.item-card').forEach((el, idx) => el.style.setProperty('--i', Math.min(idx, 20)));
   }
 
+  function renderEnchants() {
+    const { enchants = [], items } = state.data;
+    $('#enchantsSection').hidden = enchants.length === 0;
+    const byId = new Map(items.map((i) => [i.id, i]));
+    $('#enchants').innerHTML = enchants.map((e) => {
+      const on = e.itemIds.map((id) => byId.get(id)).filter(Boolean);
+      return `<article class="ench-card">
+        <div class="ench-top">
+          <div class="icon-slot">${iconHtml('mc:Enchanted_Book', 'Enchanted Book')}</div>
+          <div class="item-title">
+            <h3>${esc(e.name)}</h3>
+            <span class="badge badge-ench">maks. ${roman(e.maxLevel)}</span>
+          </div>
+        </div>
+        ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
+        <div class="price">${priceChips(e.prices)}<span class="muted small">/ poziom</span></div>
+        ${on.length ? `<div class="ench-on"><span class="muted small">Pasuje do:</span> ${on.map((i) => `<span title="${esc(i.name)}">${iconHtml(i.icon, i.name, 'sm')}</span>`).join('')}</div>` : ''}
+        ${e.book ? `<button class="btn btn-ghost btn-sm" data-book="${e.id}">${sparkIcon} Kup księgę</button>` : ''}
+      </article>`;
+    }).join('');
+  }
+
   function render() {
     document.title = state.data.shopName;
     $('#shopName').textContent = state.data.shopName;
     renderBundles();
+    renderEnchants();
     renderCategories();
     renderItems();
   }

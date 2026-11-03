@@ -1,6 +1,6 @@
 // Koszyk, zamawianie z nickiem, moje zamowienia i czat ze sklepem
 (() => {
-  const { esc, iconHtml, api, priceText, toast } = MTS;
+  const { esc, iconHtml, api, priceText, toast, roman, enchText } = MTS;
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
@@ -49,10 +49,31 @@
   $$('.dtab').forEach((t) => t.addEventListener('click', () => switchCartTab(t.dataset.dtab)));
 
   // ---------- koszyk ----------
+  const BOOK = { name: 'Enchanted Book', icon: 'mc:Enchanted_Book', prices: [] };
   function find(line) {
     if (!data) return null;
+    if (line.type === 'book') return BOOK;
     return line.type === 'bundle' ? data.bundles.find((b) => b.id === line.id) : data.items.find((i) => i.id === line.id);
   }
+
+  // Enchanty z linii koszyka z aktualnymi danymi; null gdy ktorys juz nie pasuje
+  function lineEnchants(line) {
+    const out = [];
+    for (const e of line.ench || []) {
+      const en = data.enchants?.find((x) => x.id === e.id);
+      if (!en || e.level > en.maxLevel || (line.type === 'book' ? !en.book : !en.itemIds.includes(line.id))) return null;
+      out.push({ ...en, level: e.level });
+    }
+    return out;
+  }
+
+  // Cena jednej sztuki: przedmiot + enchanty (cena za poziom × poziom)
+  function unitPrices(line) {
+    const ench = lineEnchants(line) || [];
+    return sum([{ prices: find(line).prices, qty: 1 }, ...ench.map((e) => ({ prices: e.prices, qty: e.level }))]);
+  }
+
+  const sameEnch = (a = [], b = []) => a.length === b.length && a.every((e, i) => e.id === b[i].id && e.level === b[i].level);
 
   function itemIcon(name) {
     return data?.items.find((i) => i.name.toLowerCase() === String(name).toLowerCase())?.icon || '';
@@ -77,7 +98,7 @@
   const saveCart = () => store.set('mts_cart', cart);
 
   function renderCart() {
-    if (data) cart = cart.filter((l) => find(l));
+    if (data) cart = cart.filter((l) => find(l) && lineEnchants(l) && (l.type !== 'book' || l.ench?.length));
     const count = cart.reduce((a, l) => a + l.qty, 0);
     $('#cartCount').textContent = count > 99 ? '99+' : count;
     $('#cartCount').hidden = count === 0;
@@ -88,11 +109,13 @@
     $('#cartLines').innerHTML = cart.map((l, idx) => {
       const src = find(l);
       const icon = l.type === 'bundle' ? iconHtml(src.icon, src.items[0]?.name || src.name) : iconHtml(src.icon, src.name);
-      return `<div class="cart-line" data-idx="${idx}">
+      const ench = lineEnchants(l);
+      return `<div class="cart-line ${ench.length ? 'enchanted' : ''}" data-idx="${idx}">
         <div class="icon-slot">${icon}</div>
         <div class="cart-line-main">
           <b>${esc(src.name)}</b>${l.type === 'bundle' ? ' <span class="badge">zestaw</span>' : ''}
-          <span class="muted small">${esc(priceText(src.prices))} / szt.</span>
+          ${ench.length ? `<span class="ench-text">${esc(enchText(ench))}</span>` : ''}
+          <span class="muted small">${esc(priceText(unitPrices(l)))} / szt.</span>
         </div>
         <div class="qty">
           <button type="button" class="icon-btn" data-qty="-1" aria-label="Mniej">−</button>
@@ -106,16 +129,17 @@
     const shop = data.shop || {};
     const express = $('#orderForm').express.checked && shop.expressEnabled;
     const fee = shop.expressFee?.amount > 0 ? [{ currency: shop.expressFee.currency, amount: shop.expressFee.amount }] : [];
-    const total = sum([...cart.map((l) => ({ prices: find(l).prices, qty: l.qty })), ...(express ? [{ prices: fee, qty: 1 }] : [])]);
+    const total = sum([...cart.map((l) => ({ prices: unitPrices(l), qty: l.qty })), ...(express ? [{ prices: fee, qty: 1 }] : [])]);
     $('#cartTotal').innerHTML = priceChips(total);
     $('#expressBox').hidden = !shop.expressEnabled;
     $('#expressFee').textContent = fee.length ? `+ ${priceText(fee)}` : 'gratis';
   }
 
-  function addToCart(type, id) {
-    const line = cart.find((l) => l.type === type && l.id === id);
+  function addToCart(type, id, ench = []) {
+    ench = [...ench].sort((a, b) => a.id - b.id);
+    const line = cart.find((l) => l.type === type && l.id === id && sameEnch(l.ench, ench));
     if (line) line.qty = Math.min(999, line.qty + 1);
-    else cart.push({ type, id, qty: 1 });
+    else cart.push({ type, id, qty: 1, ...(ench.length ? { ench } : {}) });
     saveCart();
     renderCart();
     const src = find({ type, id });
@@ -171,7 +195,7 @@
     try {
       const order = await api('/api/orders', {
         method: 'POST',
-        body: { nick, express: f.express.checked && !!data?.shop?.expressEnabled, note: f.note.value, lines: cart.map(({ type, id, qty }) => ({ type, id, qty })) },
+        body: { nick, express: f.express.checked && !!data?.shop?.expressEnabled, note: f.note.value, lines: cart.map(({ type, id, qty, ench }) => ({ type, id, qty, ench: ench || [] })) },
         headers: chatHeaders(),
       });
       store.set('mts_nick', nick);
@@ -190,6 +214,56 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // ---------- wybor enchantow ----------
+  let enchTarget = null; // { type: 'item' | 'book', id }
+  const dlg = $('#enchDialog');
+
+  function openEnchPicker(target, preselect) {
+    enchTarget = target;
+    const list = (data.enchants || []).filter((e) => (target.type === 'book' ? e.book : e.itemIds.includes(target.id)));
+    const src = find(target);
+    $('#enchTitleModal').textContent = target.type === 'book' ? 'Księga z enchantami' : src.name;
+    $('#enchSub').textContent = target.type === 'book' ? 'Zaznacz enchanty, które ma mieć księga' : 'Zaznacz enchanty i poziomy';
+    $('#enchTargetIcon').innerHTML = iconHtml(src.icon, src.name);
+    $('#enchList').innerHTML = list.map((e) => `
+      <label class="ench-row" data-id="${e.id}">
+        <input type="checkbox" ${e.id === preselect ? 'checked' : ''}>
+        <span class="ench-name"><b>${esc(e.name)}</b><span class="muted small">${esc(priceText(e.prices))} / poziom</span></span>
+        ${e.maxLevel > 1 ? `<select aria-label="Poziom ${esc(e.name)}">${Array.from({ length: e.maxLevel }, (_, i) => `<option value="${i + 1}" ${i + 1 === e.maxLevel ? 'selected' : ''}>${roman(i + 1)}</option>`).join('')}</select>` : '<span class="ench-lvl">I</span>'}
+      </label>`).join('') || '<p class="empty">Brak enchantów.</p>';
+    $('.form-error', dlg).textContent = '';
+    updateEnchTotal();
+    dlg.showModal();
+  }
+
+  function pickedEnch() {
+    return $$('.ench-row', dlg).filter((r) => $('input', r).checked)
+      .map((r) => ({ id: Number(r.dataset.id), level: Number($('select', r)?.value || 1) }));
+  }
+
+  function updateEnchTotal() {
+    const line = { ...enchTarget, ench: pickedEnch() };
+    $$('.ench-row', dlg).forEach((r) => r.classList.toggle('on', $('input', r).checked));
+    $('#enchTotal').innerHTML = line.ench.length || line.type !== 'book' ? priceChips(unitPrices(line)) : '<span class="muted">wybierz enchant</span>';
+  }
+
+  dlg.addEventListener('change', updateEnchTotal);
+  $$('[data-close-ench]', dlg).forEach((b) => b.addEventListener('click', () => dlg.close()));
+  $('#enchForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const ench = pickedEnch();
+    if (!ench.length) { $('.form-error', dlg).textContent = 'Zaznacz przynajmniej jeden enchant'; return; }
+    dlg.close();
+    addToCart(enchTarget.type, enchTarget.id, ench);
+  });
+
+  document.addEventListener('click', (e) => {
+    const it = e.target.closest('[data-ench-item]');
+    if (it) openEnchPicker({ type: 'item', id: Number(it.dataset.enchItem) });
+    const bk = e.target.closest('[data-book]');
+    if (bk) openEnchPicker({ type: 'book', id: 0 }, Number(bk.dataset.book));
   });
 
   // ---------- moje zamowienia ----------
@@ -215,7 +289,7 @@
           ${o.express ? '<span class="badge badge-express">natychmiast</span>' : ''}
           <span class="status-pill status-${o.status}">${STATUS[o.status]}</span>
         </header>
-        <p class="small">${o.lines.map((l) => `${l.qty}× ${esc(l.name)}`).join(', ')}</p>
+        <p class="small">${o.lines.map((l) => `${l.qty}× ${esc(l.name)}${l.enchants?.length ? ` (${esc(enchText(l.enchants))})` : ''}`).join(', ')}</p>
         <div class="my-order-foot">
           <span class="small muted">dla <b>${esc(o.nick)}</b> · ${ago(o.createdAt)}</span>
           <span class="small">${esc(priceText(o.total))}</span>

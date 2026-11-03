@@ -123,6 +123,61 @@
 .chat-form .btn { padding: 10px 14px; }
 .chat-form .btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
+/* ---------- enchanty ---------- */
+:root { --ench: #b98cff; --ench-glow: rgba(185, 140, 255, .28); }
+.enchants { margin-top: 34px; }
+.section-sub { margin: 6px 0 0; font-size: 14px; }
+.dot.dot-ench { background: var(--ench); box-shadow: 3px 3px 0 #5b3b94; }
+.ench-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 14px; }
+.ench-card {
+  position: relative; overflow: hidden;
+  background: linear-gradient(160deg, rgba(185,140,255,.10), transparent 55%), linear-gradient(180deg, var(--panel-2), var(--panel));
+  border: 1px solid #3b2f55; border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  transition: transform .18s, border-color .18s, box-shadow .18s;
+}
+.ench-card:hover { transform: translateY(-4px); border-color: var(--ench); box-shadow: 0 12px 28px rgba(0,0,0,.4), 0 0 24px var(--ench-glow); }
+.ench-card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s;
+  background: linear-gradient(115deg, transparent 30%, rgba(200,160,255,.18) 45%, transparent 60%);
+  background-size: 250% 100%; animation: shine 2.5s linear infinite;
+}
+.ench-card:hover::after, .ench-row.on::after { opacity: 1; }
+@keyframes shine { from { background-position: 150% 0; } to { background-position: -100% 0; } }
+.ench-top { display: flex; gap: 12px; align-items: center; }
+.ench-top h3 { font-size: 18px; line-height: 1.2; }
+.badge.badge-ench { color: var(--ench); background: rgba(185,140,255,.1); border-color: #5b3b94; }
+.ench-on { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ench-card .btn { align-self: flex-start; }
+.btn svg { flex: none; }
+.ench-btn { color: var(--ench); border-color: #4a3a6b; }
+.ench-btn:hover { color: var(--ench); border-color: var(--ench); box-shadow: 0 0 14px var(--ench-glow); }
+
+.ench-modal { width: min(520px, calc(100vw - 24px)); padding: 0; border: 1px solid #4a3a6b; border-radius: 14px; background: var(--bg-2); color: var(--text); box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 40px var(--ench-glow); }
+.ench-modal::backdrop { background: rgba(0,0,0,.65); backdrop-filter: blur(3px); }
+.ench-modal[open] { animation: pop .2s ease; }
+.ench-modal form { display: flex; flex-direction: column; max-height: calc(100vh - 26px); }
+.ench-modal .modal-head, .ench-modal .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 18px; }
+.ench-modal .modal-head { border-bottom: 1px solid var(--line); }
+.ench-modal .modal-foot { border-top: 1px solid var(--line); justify-content: flex-end; }
+.ench-modal .modal-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.ench-head { display: flex; align-items: center; gap: 12px; }
+.ench-head h2 { font-size: 20px; }
+.ench-list { display: flex; flex-direction: column; gap: 8px; }
+.ench-row {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; transition: border-color .15s, background .15s;
+}
+.ench-row::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; background: linear-gradient(115deg, transparent 30%, rgba(200,160,255,.14) 45%, transparent 60%); background-size: 250% 100%; animation: shine 2.5s linear infinite; }
+.ench-row.on { border-color: var(--ench); background: rgba(185,140,255,.08); }
+.ench-row input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--ench); flex: none; }
+.ench-name { flex: 1; display: flex; flex-direction: column; }
+.ench-row select { width: auto; padding: 6px 10px; position: relative; z-index: 1; }
+.ench-lvl { color: var(--muted); padding: 0 10px; }
+.ench-sum { display: flex; flex-direction: column; gap: 8px; border-top: 1px dashed var(--line-2); padding-top: 12px; }
+.ench-text { color: var(--ench); font-size: 12.5px; font-weight: 600; }
+.cart-line.enchanted { border-color: #4a3a6b; }
+.cart-line.enchanted .icon-slot { box-shadow: 0 0 0 2px #1a1a1a, 0 0 12px var(--ench-glow); }
+
 body.panel-open { overflow: hidden; }
 @media (max-width: 640px) {
   .fab-wrap { right: 12px; bottom: 12px; }

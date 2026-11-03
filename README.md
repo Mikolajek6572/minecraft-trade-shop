@@ -48,6 +48,7 @@ MinecraftTradeShop/
 | `conversations`, `messages` | czat z graczami (+ notatka admina, czy asystent odpowiada) |
 | `orders` | zamówienia: nick, pozycje z cenami z chwili zamówienia, suma, natychmiastowa dostawa, status |
 | `rate_limits` | limity spamu (zamówienia, czat) |
+| `enchants`, `enchant_prices` | enchanty: maks. poziom, cena za poziom, pasujące przedmioty, czy jako księga |
 | `settings` | ustawienia, np. nazwa sklepu |
 
 Kopia zapasowa: w folderze `worker` uruchom `npm run backup` (zapisze `backup.sql`).
@@ -97,6 +98,12 @@ Potem wchodzisz na `admin.html` i się logujesz. Hasło zmienisz też w panelu: 
 - Panel sam się odświeża co 5 s, **piszczy** przy nowym zamówieniu lub wiadomości (pilne zamówienie = głośny alarm), a w tytule karty widać licznik.
 - Zmiana statusu zamówienia sama pisze graczowi w czacie, jeśli go ma.
 - **Ustawienia:** włączanie natychmiastowej dostawy i jej dopłata, włączanie asystenta AI, dźwięk.
+
+**Enchanty:**
+- Admin w zakładce **Enchanty** ustawia nazwę, maks. poziom, **cenę za 1 poziom** (może być z kilku przedmiotów), do których przedmiotów pasuje i czy można go kupić jako **księgę**.
+- Na stronie jest sekcja **Enchanty i księgi**, a przy pasujących przedmiotach przycisk **Enchanty** – gracz zaznacza enchanty i poziomy, widzi cenę za sztukę i dodaje do koszyka.
+- Cena = cena przedmiotu + (cena enchantu × poziom). Księga kosztuje tylko enchanty. Serwer sam to liczy i sprawdza, czy enchant pasuje i czy poziom nie jest za wysoki.
+- Na start jest 7 enchantów (Protection, Unbreaking, Mending, Feather Falling, Sharpness, Efficiency, Fortune) – zmienisz je w panelu.
 
 Ochrona przed spamem: max 10 zamówień na godzinę z jednego IP, limit wiadomości w czacie i nowych rozmów.
 Asystent korzysta z darmowego limitu Workers AI – gdy się skończy, gracz dostaje info, że admin odpisze.
@@ -172,7 +179,7 @@ Każda zmiana w `docs/` wypchnięta na `main` sama aktualizuje stronę. Zmiany w
 | GET | `/api/auth/me` | admin |
 | POST | `/api/auth/password` | admin |
 | GET | `/api/admin/catalog` | admin (z ukrytymi pozycjami) |
-| POST / PUT / DELETE | `/api/admin/items[/:id]`, `/categories[/:id]`, `/bundles[/:id]` | admin |
+| POST / PUT / DELETE | `/api/admin/items[/:id]`, `/categories[/:id]`, `/bundles[/:id]`, `/enchants[/:id]` | admin |
 | PUT | `/api/admin/settings` | admin |
 | POST | `/api/orders` | strona (nick wymagany) |
 | GET | `/api/orders/<numer>` | strona – status zamówienia |

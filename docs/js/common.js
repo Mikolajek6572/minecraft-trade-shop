@@ -106,6 +106,10 @@ const MTS = (() => {
     return { value, ofPrices };
   }
 
+  const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+  const roman = (n) => ROMAN[n] || String(n);
+  const enchText = (list) => (list || []).map((e) => `${e.name}${e.maxLevel === 1 && e.level === 1 ? '' : ` ${roman(e.level)}`}`).join(', ');
+
   const priceText = (prices) => prices.map((p) => `${p.amount} ${p.currency}`).join(' + ');
 
   function toast(msg, type = 'ok') {
@@ -137,5 +141,5 @@ const MTS = (() => {
     }
   }
 
-  return { esc, wikiName, iconUrl, iconHtml, api, token, valueCalculator, priceText, toast, copy };
+  return { esc, wikiName, iconUrl, iconHtml, api, token, roman, enchText, valueCalculator, priceText, toast, copy };
 })();

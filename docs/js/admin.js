@@ -1,6 +1,6 @@
 // Panel administratora
 (() => {
-  const { esc, iconHtml, api, token, priceText, toast } = MTS;
+  const { esc, iconHtml, api, token, priceText, toast, enchText, roman } = MTS;
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
@@ -91,6 +91,7 @@
     renderItems();
     renderBundles();
     renderCategories();
+    renderEnchantsAdmin();
     const sf = $('#settingsForm');
     sf.shopName.value = data.shopName;
     if (data.shop && document.activeElement?.form !== sf) {
@@ -379,6 +380,96 @@
     } catch (err) { $('.form-error', bundleForm).textContent = err.message; }
   });
 
+  // ---------- enchanty ----------
+  function renderEnchantsAdmin() {
+    const byId = new Map(data.items.map((i) => [i.id, i]));
+    $('#enchList').innerHTML = data.enchants?.length ? data.enchants.map((e) => `
+      <article class="admin-card ${e.visible ? '' : 'is-hidden'}" data-id="${e.id}">
+        <div class="admin-card-head">
+          <div class="icon-slot">${iconHtml('mc:Enchanted_Book', 'Enchanted Book')}</div>
+          <h3>${esc(e.name)} <span class="muted small">maks. ${roman(e.maxLevel)}</span>${e.visible ? '' : ' <span class="muted small">(ukryty)</span>'}</h3>
+          <div class="row-actions">
+            <button class="icon-btn" data-act="edit" aria-label="Edytuj">${ICONS.edit}</button>
+            <button class="icon-btn danger" data-act="delete" aria-label="Usuń">${ICONS.trash}</button>
+          </div>
+        </div>
+        <div class="discount-preview"><b>${esc(priceText(e.prices))}</b> za poziom · na maks.: <b>${esc(priceText(e.prices.map((p) => ({ ...p, amount: p.amount * e.maxLevel }))))}</b></div>
+        <div class="small muted">Księga: ${e.book ? 'tak' : 'nie'} · Przedmioty: ${e.itemIds.map((id) => byId.get(id)?.name).filter(Boolean).map(esc).join(', ') || 'żadne'}</div>
+      </article>`).join('') : '<p class="empty">Brak enchantów.</p>';
+  }
+
+  const enchForm = $('#enchForm');
+  let editingEnch = null;
+
+  function renderEnchItems(selected) {
+    $('#enchItems').innerHTML = data.items.map((i) => `
+      <label class="ench-item" data-name="${esc(i.name.toLowerCase())}">
+        <input type="checkbox" value="${i.id}" ${selected.includes(i.id) ? 'checked' : ''}>
+        ${iconHtml(i.icon, i.name, 'sm')}<span>${esc(i.name)}</span>
+      </label>`).join('');
+  }
+  $('#enchItemSearch').addEventListener('input', (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    $$('#enchItems .ench-item').forEach((l) => { l.hidden = !!q && !l.dataset.name.includes(q); });
+  });
+  enchForm.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ench-all]');
+    if (!b) return;
+    $$('#enchItems .ench-item').forEach((l) => { if (!l.hidden || b.dataset.enchAll === '0') $('input', l).checked = b.dataset.enchAll === '1'; });
+  });
+
+  function openEnch(en) {
+    editingEnch = en;
+    $('#enchDialogTitle').textContent = en ? `Edytuj: ${en.name}` : 'Dodaj enchant';
+    enchForm.reset();
+    enchForm.name.value = en?.name || '';
+    enchForm.maxLevel.value = String(en?.maxLevel || 5);
+    enchForm.note.value = en?.note || '';
+    enchForm.book.checked = en ? en.book : true;
+    enchForm.visible.checked = en ? en.visible : true;
+    $('#enchItemSearch').value = '';
+    renderEnchItems(en?.itemIds || []);
+    $('#enchPrices').replaceChildren(...(en?.prices.length ? en.prices : [{ amount: 1, currency: '' }]).map(priceRow));
+    $('.form-error', enchForm).textContent = '';
+    $('#enchDialog').showModal();
+    enchForm.name.focus();
+  }
+
+  $('#addEnchBtn').addEventListener('click', () => openEnch(null));
+  $('#enchList').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const en = data.enchants.find((x) => x.id === Number(btn.closest('[data-id]').dataset.id));
+    if (btn.dataset.act === 'edit') openEnch(en);
+    if (btn.dataset.act === 'delete' && confirm(`Usunąć enchant "${en.name}"?`)) {
+      try {
+        await call(`/api/admin/enchants/${en.id}`, { method: 'DELETE' });
+        toast('Usunięto enchant');
+        reload();
+      } catch (err) { toast(err.message, 'err'); }
+    }
+  });
+
+  enchForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      name: enchForm.name.value,
+      maxLevel: Number(enchForm.maxLevel.value),
+      note: enchForm.note.value,
+      book: enchForm.book.checked,
+      visible: enchForm.visible.checked,
+      itemIds: $$('#enchItems input:checked').map((c) => Number(c.value)),
+      prices: readPrices($('#enchPrices')),
+    };
+    try {
+      if (editingEnch) await call(`/api/admin/enchants/${editingEnch.id}`, { method: 'PUT', body });
+      else await call('/api/admin/enchants', { method: 'POST', body });
+      $('#enchDialog').close();
+      toast(`Zapisano ${body.name}`);
+      reload();
+    } catch (err) { $('.form-error', enchForm).textContent = err.message; }
+  });
+
   // ---------- kategorie ----------
   function renderCategories() {
     $('#catList').innerHTML = data.categories.length ? data.categories.map((c) => `
@@ -595,8 +686,8 @@
           ${o.conversationId ? `<button class="btn btn-ghost btn-sm" data-open-chat="${o.conversationId}">Czat</button>` : ''}
         </div>
         <ul class="order-lines">
-          ${o.lines.map((l) => `<li><div class="icon-slot">${iconHtml(l.type === 'item' ? (data.items.find((i) => i.name === l.name)?.icon || '') : (data.bundles.find((b) => b.name === l.name)?.icon || ''), l.name)}</div>
-            <span><b>${l.qty}×</b> ${esc(l.name)}${l.type === 'bundle' ? ' <span class="badge">zestaw</span>' : ''}</span>
+          ${o.lines.map((l) => `<li><div class="icon-slot">${iconHtml(l.type === 'book' ? 'mc:Enchanted_Book' : l.type === 'item' ? (data.items.find((i) => i.name === l.name)?.icon || '') : (data.bundles.find((b) => b.name === l.name)?.icon || ''), l.name)}</div>
+            <span><b>${l.qty}×</b> ${esc(l.name)}${l.type === 'bundle' ? ' <span class="badge">zestaw</span>' : ''}${l.enchants?.length ? `<br><span class="ench-text">${esc(enchText(l.enchants))}</span>` : ''}</span>
             <span class="muted small">${esc(priceText(l.prices.map((p) => ({ ...p, amount: p.amount * l.qty }))))}</span></li>`).join('')}
         </ul>
         <div class="order-total">Gracz płaci: <b>${esc(priceText(o.total))}</b>${o.expressFee.length ? ` <span class="muted small">(w tym dopłata ${esc(priceText(o.expressFee))})</span>` : ''}</div>
@@ -724,7 +815,7 @@
     $('#convOrders').innerHTML = c.orders.length ? c.orders.map((o) => `
       <div class="mini-order status-${o.status}">
         <span><b>#${esc(o.code)}</b>${o.express ? ' <span class="badge badge-express">!</span>' : ''} <span class="status-pill status-${o.status}">${STATUS[o.status]}</span></span>
-        <span class="small muted">${o.lines.map((l) => `${l.qty}× ${esc(l.name)}`).join(', ')}</span>
+        <span class="small muted">${o.lines.map((l) => `${l.qty}× ${esc(l.name)}${l.enchants?.length ? ` (${esc(enchText(l.enchants))})` : ''}`).join(', ')}</span>
       </div>`).join('') : '<p class="muted small">Brak zamówień.</p>';
     const item = conversations.find((x) => x.id === id);
     if (item) item.unread = 0;

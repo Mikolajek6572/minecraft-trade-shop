@@ -75,6 +75,7 @@ const adminResources = {
   items: [catalog.saveItem, catalog.deleteItem],
   categories: [catalog.saveCategory, catalog.deleteCategory],
   bundles: [catalog.saveBundle, catalog.deleteBundle],
+  enchants: [catalog.saveEnchant, catalog.deleteEnchant],
 };
 
 async function route(request, env, ctx) {
@@ -179,7 +180,7 @@ async function route(request, env, ctx) {
   }
 
   // Kazdy typ danych: POST = dodaj, PUT = edytuj, DELETE = usun
-  const m = path.match(/^\/api\/admin\/(items|categories|bundles)(?:\/([^/]+))?$/);
+  const m = path.match(/^\/api\/admin\/(items|categories|bundles|enchants)(?:\/([^/]+))?$/);
   if (m) {
     const [save, remove] = adminResources[m[1]];
     if (method === 'POST' && !m[2]) return json({ id: await save(db, null, await readBody(request)) }, 201);

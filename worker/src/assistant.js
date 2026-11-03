@@ -17,6 +17,10 @@ async function systemPrompt(db) {
     const regular = sumPrices(b.items.map((bi) => ({ prices: byId.get(bi.item_id)?.prices || [], qty: bi.qty })));
     return `- ${b.name} (${b.items.map((i) => `${i.qty}× ${i.name}`).join(', ')}): ${priceText(b.prices)} – osobno byłoby ${priceText(regular)}`;
   });
+  const enchants = catalog.enchants.map((e) => {
+    const on = e.itemIds.map((id) => byId.get(id)?.name).filter(Boolean);
+    return `- ${e.name} (maks. poziom ${e.maxLevel}): ${priceText(e.prices)} za 1 poziom; ${[on.length ? `można dodać do: ${on.join(', ')}` : '', e.book ? 'można kupić jako księgę' : ''].filter(Boolean).join('; ')}`;
+  });
   const fee = settings.expressFee;
   return `Jesteś asystentem sklepu „${catalog.shopName}” dla graczy Minecrafta. Sklep działa na wymianę barterową: płaci się przedmiotami z gry, nie prawdziwymi pieniędzmi.
 
@@ -35,7 +39,11 @@ CENNIK (przedmiot: cena):
 ${items.join('\n') || '(pusty)'}
 
 ZESTAWY I RABATY:
-${bundles.join('\n') || '(brak)'}`;
+${bundles.join('\n') || '(brak)'}
+
+ENCHANTY (cena za 1 poziom, np. Protection IV = 4× cena; enchant dolicza się do ceny przedmiotu; księga z enchantem kosztuje tylko cenę enchantów):
+${enchants.join('\n') || '(brak)'}
+Jak dodać enchant: przy przedmiocie kliknij „Enchanty”, zaznacz enchanty i poziomy, potem „Dodaj do koszyka”. Księgi kupuje się w sekcji „Enchanty i księgi”.`;
 }
 
 export async function reply(env, convId) {

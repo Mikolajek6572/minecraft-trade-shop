@@ -1,4 +1,11 @@
-/* Panel admina: zamowienia i czat */
+/* Panel admina: zamowienia, czat i enchanty */
+.ench-items-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.ench-items-tools input { flex: 1; min-width: 160px; padding: 7px 10px; }
+.ench-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; }
+.ench-item { display: flex; flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-size: 13px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; cursor: pointer; }
+.ench-item:has(input:checked) { border-color: var(--ench, #b98cff); background: rgba(185,140,255,.08); }
+.ench-item input { width: 16px; height: 16px; accent-color: #b98cff; flex: none; }
+.ench-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab { display: inline-flex; align-items: center; gap: 6px; }
 .tab-badge {
   min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
