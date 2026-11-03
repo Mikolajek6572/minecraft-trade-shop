@@ -167,7 +167,7 @@ Strona: http://localhost:5500 · Panel: http://localhost:5500/admin.html
    W `wrangler.toml` w `ALLOWED_ORIGINS` wpisz adres swojej strony (np. `https://twojnick.github.io`) i zrób `npm run deploy`.
 3. **Strona:** wrzuć repo na GitHuba, a potem *Settings → Pages → Deploy from a branch → `main` / `docs`*.
 
-Każda zmiana w `docs/` wypchnięta na `main` sama aktualizuje stronę. Zmiany w `worker/` wdrażasz przez `npm run deploy`.
+Każda zmiana w `docs/` wypchnięta na `main` sama aktualizuje stronę. **Przed wypchnięciem zmian w JS/CSS uruchom `node docs/wersja.js`** – podbija numer wersji plików, inaczej przeglądarki przez 10 minut biorą stare pliki z pamięci (GitHub Pages tak je cache’uje) i nowe przyciski nie działają. Zmiany w `worker/` wdrażasz przez `npm run deploy`.
 
 ## API
 
