@@ -181,6 +181,7 @@
     try {
       const data = await api('/api/catalog');
       // Koszyk i czat dostaja swieze dane, a cennik przerysowuje sie tylko gdy cos sie zmienilo
+      window.MTS_DATA = data; // shop.js moze zaladowac sie pozniej niz pierwsze dane
       window.dispatchEvent(new CustomEvent('mts:data', { detail: data }));
       const json = JSON.stringify({ ...data, shop: null });
       if (json === lastJson) return;

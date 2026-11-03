@@ -221,6 +221,7 @@
   const dlg = $('#enchDialog');
 
   function openEnchPicker(target, preselect) {
+    if (!data) return toast('Cennik jeszcze się wczytuje, spróbuj za chwilę', 'err');
     enchTarget = target;
     const list = (data.enchants || []).filter((e) => (target.type === 'book' ? e.book : e.itemIds.includes(target.id)));
     const src = find(target);
@@ -425,6 +426,8 @@
     renderCart();
   });
 
+  // Dane mogly przyjsc zanim ten plik sie zaladowal
+  if (window.MTS_DATA) data = window.MTS_DATA;
   renderCart();
   chatUi();
   if (chatToken()) { pollChat(); scheduleChat(); }
