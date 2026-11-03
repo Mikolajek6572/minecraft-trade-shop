@@ -2,6 +2,7 @@
 import { HttpError } from './catalog.js';
 import { getSettings, expressFeeList, rateLimit, validNick, text, sumPrices } from './shop.js';
 import { conversationFromRequest, addSystemMessage } from './chat.js';
+import * as promo from './promo.js';
 
 export const STATUSES = { new: 'Nowe', in_progress: 'W realizacji', done: 'Zrealizowane', cancelled: 'Anulowane' };
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -24,6 +25,8 @@ function view(o, { admin = false } = {}) {
     express: !!o.express,
     expressFee: JSON.parse(o.express_fee_json),
     customerNote: o.customer_note,
+    promo: o.promo_code ? { code: o.promo_code, percent: o.promo_percent } : null,
+    subtotal: o.subtotal_json ? JSON.parse(o.subtotal_json) : null,
     createdAt: o.created_at,
     updatedAt: o.updated_at,
   };
@@ -100,7 +103,11 @@ export async function createOrder(env, request, body, clientIp) {
   const express = body.express === true;
   if (express && !settings.expressEnabled) throw new HttpError(400, 'Natychmiastowa dostawa jest teraz wyłączona');
   const fee = express ? expressFeeList(settings) : [];
-  const total = sumPrices([...lines, { prices: fee, qty: 1 }]);
+  // Kod promocyjny obniza cene przedmiotow, doplata za natychmiastowa dostawa zostaje bez zmian
+  const promoCode = body.promo ? await promo.findValid(db, body.promo) : null;
+  const subtotal = sumPrices(lines);
+  const discounted = promoCode ? promo.discount(subtotal, promoCode.percent) : subtotal;
+  const total = sumPrices([{ prices: discounted, qty: 1 }, { prices: fee, qty: 1 }]);
 
   const conv = await conversationFromRequest(db, request);
   const now = Date.now();
@@ -109,11 +116,13 @@ export async function createOrder(env, request, body, clientIp) {
     const c = newCode();
     if (!(await db.prepare('SELECT 1 FROM orders WHERE code = ?').bind(c).first())) code = c;
   }
-  const row = await db.prepare(`INSERT INTO orders (code, nick, lines_json, total_json, express, express_fee_json, customer_note, conversation_id, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
-    .bind(code, nick, JSON.stringify(lines), JSON.stringify(total), express ? 1 : 0, JSON.stringify(fee), note, conv?.id ?? null, now, now).first();
+  if (promoCode) await promo.use(db, promoCode.id);
+  const row = await db.prepare(`INSERT INTO orders (code, nick, lines_json, total_json, express, express_fee_json, customer_note, conversation_id, created_at, updated_at, promo_code, promo_percent, subtotal_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+    .bind(code, nick, JSON.stringify(lines), JSON.stringify(total), express ? 1 : 0, JSON.stringify(fee), note, conv?.id ?? null, now, now,
+      promoCode?.code ?? null, promoCode?.percent ?? null, JSON.stringify(subtotal)).first();
 
-  if (conv) await addSystemMessage(db, conv.id, `Złożono zamówienie #${code}${express ? ' (NATYCHMIASTOWA DOSTAWA)' : ''}: ${lines.map((l) => `${l.qty}× ${lineName(l)}`).join(', ')}`);
+  if (conv) await addSystemMessage(db, conv.id, `Złożono zamówienie #${code}${express ? ' (NATYCHMIASTOWA DOSTAWA)' : ''}${promoCode ? ` z kodem ${promoCode.code} (−${promoCode.percent}%)` : ''}: ${lines.map((l) => `${l.qty}× ${lineName(l)}`).join(', ')}`);
   return view(row);
 }
 

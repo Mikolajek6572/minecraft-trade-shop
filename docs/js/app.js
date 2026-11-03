@@ -167,8 +167,22 @@
     }).join('');
   }
 
+  const dateTxt = (ts) => new Date(ts).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', timeZone: 'Europe/Warsaw' });
+
+  function renderPromoBanner() {
+    const p = state.data.shop?.promos?.[0];
+    const b = $('#promoBanner');
+    b.hidden = !p;
+    if (!p) return;
+    b.dataset.code = p.code;
+    b.innerHTML = `<span class="promo-pct">−${p.percent}%</span>
+      <span>Wpisz kod <b class="promo-code">${esc(p.code)}</b> w koszyku i płać ${p.percent}% mniej${p.expiresAt ? ` – tylko do ${dateTxt(p.expiresAt)}` : ''}!</span>
+      <span class="promo-copy">Kliknij, żeby użyć</span>`;
+  }
+
   function render() {
     document.title = state.data.shopName;
+    renderPromoBanner();
     $('#shopName').textContent = state.data.shopName;
     renderBundles();
     renderEnchants();
@@ -184,7 +198,7 @@
       window.MTS_DATA = data; // shop.js moze zaladowac sie pozniej niz pierwsze dane
       window.dispatchEvent(new CustomEvent('mts:data', { detail: data }));
       const json = JSON.stringify({ ...data, shop: null });
-      if (json === lastJson) return;
+      if (json === lastJson) { if (state.data) { state.data.shop = data.shop; renderPromoBanner(); } return; }
       lastJson = json;
       state.data = data;
       if (state.category !== 'all' && !state.data.categories.some((c) => String(c.id) === state.category)) state.category = 'all';

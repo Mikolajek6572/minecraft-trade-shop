@@ -16,6 +16,8 @@
   let data = null;
   let cart = store.get('mts_cart', []);
   let myOrders = store.get('mts_orders', []);
+  let promo = store.get('mts_promo', null); // { code, percent, expiresAt }
+  const discount = (prices, pct) => prices.map((p) => ({ currency: p.currency, amount: Math.max(1, Math.round(p.amount * (100 - pct) / 100)) }));
 
   // ---------- panele ----------
   let openPanel = null;
@@ -129,8 +131,16 @@
     const shop = data.shop || {};
     const express = $('#orderForm').express.checked && shop.expressEnabled;
     const fee = shop.expressFee?.amount > 0 ? [{ currency: shop.expressFee.currency, amount: shop.expressFee.amount }] : [];
-    const total = sum([...cart.map((l) => ({ prices: unitPrices(l), qty: l.qty })), ...(express ? [{ prices: fee, qty: 1 }] : [])]);
-    $('#cartTotal').innerHTML = priceChips(total);
+    if (promo?.expiresAt && promo.expiresAt < Date.now()) setPromo(null);
+    const subtotal = sum(cart.map((l) => ({ prices: unitPrices(l), qty: l.qty })));
+    const items = promo ? discount(subtotal, promo.percent) : subtotal;
+    const extra = express ? [{ prices: fee, qty: 1 }] : [];
+    $('#cartOld').hidden = !promo;
+    if (promo) $('#cartOld').innerHTML = `Bez kodu: <s>${esc(priceText(sum([{ prices: subtotal, qty: 1 }, ...extra])))}</s>`;
+    $('#cartTotal').innerHTML = priceChips(sum([{ prices: items, qty: 1 }, ...extra]));
+    $('#promoInputWrap').hidden = !!promo;
+    $('#promoApplied').hidden = !promo;
+    if (promo) $('#promoText').innerHTML = `Kod <b>${esc(promo.code)}</b>: −${promo.percent}% na przedmioty`;
     $('#expressBox').hidden = !shop.expressEnabled;
     $('#expressFee').textContent = fee.length ? `+ ${priceText(fee)}` : 'gratis';
   }
@@ -195,7 +205,7 @@
     try {
       const order = await api('/api/orders', {
         method: 'POST',
-        body: { nick, express: f.express.checked && !!data?.shop?.expressEnabled, note: f.note.value, lines: cart.map(({ type, id, qty, ench }) => ({ type, id, qty, ench: ench || [] })) },
+        body: { nick, express: f.express.checked && !!data?.shop?.expressEnabled, note: f.note.value, promo: promo?.code || undefined, lines: cart.map(({ type, id, qty, ench }) => ({ type, id, qty, ench: ench || [] })) },
         headers: chatHeaders(),
       });
       store.set('mts_nick', nick);
@@ -211,9 +221,38 @@
       if (chatToken()) pollChat();
     } catch (er) {
       err.textContent = er.message;
+      if (/kod/i.test(er.message)) { setPromo(null); renderCart(); }
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // ---------- kod promocyjny ----------
+  function setPromo(p) {
+    promo = p;
+    if (p) store.set('mts_promo', p); else store.del('mts_promo');
+  }
+
+  async function applyPromo(code) {
+    code = String(code || '').trim();
+    if (!code) return;
+    try {
+      const p = await api('/api/promo/check', { method: 'POST', body: { code } });
+      setPromo(p);
+      $('#promoInput').value = '';
+      renderCart();
+      toast(`Kod ${p.code} działa: −${p.percent}%!`);
+      return true;
+    } catch (er) {
+      toast(er.message, 'err');
+      return false;
+    }
+  }
+  $('#promoApply').addEventListener('click', () => applyPromo($('#promoInput').value));
+  $('#promoInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyPromo(e.target.value); } });
+  $('#promoRemove').addEventListener('click', () => { setPromo(null); renderCart(); });
+  $('#promoBanner').addEventListener('click', async (e) => {
+    if (await applyPromo(e.currentTarget.dataset.code)) { switchCartTab('cart'); showPanel('cartPanel'); }
   });
 
   // ---------- wybor enchantow ----------
@@ -291,6 +330,7 @@
           <span class="status-pill status-${o.status}">${STATUS[o.status]}</span>
         </header>
         <p class="small">${o.lines.map((l) => `${l.qty}× ${esc(l.name)}${l.enchants?.length ? ` (${esc(enchText(l.enchants))})` : ''}`).join(', ')}</p>
+        ${o.promo ? `<p class="small promo-used">Kod ${esc(o.promo.code)} (−${o.promo.percent}%)</p>` : ''}
         <div class="my-order-foot">
           <span class="small muted">dla <b>${esc(o.nick)}</b> · ${ago(o.createdAt)}</span>
           <span class="small">${esc(priceText(o.total))}</span>

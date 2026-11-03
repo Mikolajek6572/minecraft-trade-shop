@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=mw0vhxh2">
-  <link rel="stylesheet" href="css/shop.css?v=mw0vhxh2">
+  <link rel="stylesheet" href="css/style.css?v=mw0vstlm">
+  <link rel="stylesheet" href="css/shop.css?v=mw0vstlm">
 </head>
 <body>
   <header class="site-header">
@@ -30,6 +30,8 @@
       <h1>Przedmiot za przedmiot.</h1>
       <p>Bez złotówek i dolarów – tutaj płacisz blokami, sztabkami i diamentami. Sprawdź aktualne ceny wymiany.</p>
     </section>
+
+    <button id="promoBanner" class="promo-banner" hidden></button>
 
     <section id="bundlesSection" class="bundles" hidden aria-labelledby="bundlesTitle">
       <h2 id="bundlesTitle" class="section-title"><span class="dot"></span>Zestawy i rabaty</h2>
@@ -102,7 +104,21 @@
       <div id="cartLines" class="cart-lines"></div>
       <p id="cartEmpty" class="empty">Koszyk jest pusty.<br>Kliknij „Zamów” przy przedmiocie albo zestawie.</p>
       <form id="orderForm" class="order-form" hidden>
-        <div class="cart-total"><span class="muted">Do zapłaty</span><div id="cartTotal" class="price"></div></div>
+        <div class="promo-box">
+          <div class="promo-input" id="promoInputWrap">
+            <input id="promoInput" maxlength="30" placeholder="Kod promocyjny" aria-label="Kod promocyjny" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-ghost btn-sm" id="promoApply">Użyj</button>
+          </div>
+          <div class="promo-applied" id="promoApplied" hidden>
+            <span id="promoText"></span>
+            <button type="button" class="icon-btn" id="promoRemove" aria-label="Usuń kod">✕</button>
+          </div>
+        </div>
+        <div class="cart-total">
+          <span class="muted">Do zapłaty</span>
+          <div id="cartOld" class="old-price" hidden></div>
+          <div id="cartTotal" class="price"></div>
+        </div>
         <label>Twój nick z Minecrafta <span class="req">*</span>
           <input name="nick" required maxlength="17" autocomplete="nickname" placeholder="np. Steve" spellcheck="false">
           <span class="hint">Na ten nick admin da przedmioty</span>
@@ -181,9 +197,9 @@
     </form>
   </dialog>
 
-  <script src="js/config.js?v=mw0vhxh2"></script>
-  <script src="js/common.js?v=mw0vhxh2"></script>
-  <script src="js/app.js?v=mw0vhxh2"></script>
-  <script src="js/shop.js?v=mw0vhxh2"></script>
+  <script src="js/config.js?v=mw0vstlm"></script>
+  <script src="js/common.js?v=mw0vstlm"></script>
+  <script src="js/app.js?v=mw0vstlm"></script>
+  <script src="js/shop.js?v=mw0vstlm"></script>
 </body>
 </html>

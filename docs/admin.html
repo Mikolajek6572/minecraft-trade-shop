@@ -11,10 +11,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Pixelify+Sans:wght@500;700&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=mw0vhxh2">
-  <link rel="stylesheet" href="css/shop.css?v=mw0vhxh2">
-  <link rel="stylesheet" href="css/admin.css?v=mw0vhxh2">
-  <link rel="stylesheet" href="css/admin-live.css?v=mw0vhxh2">
+  <link rel="stylesheet" href="css/style.css?v=mw0vstlm">
+  <link rel="stylesheet" href="css/shop.css?v=mw0vstlm">
+  <link rel="stylesheet" href="css/admin.css?v=mw0vstlm">
+  <link rel="stylesheet" href="css/admin-live.css?v=mw0vstlm">
 </head>
 <body>
   <!-- Logowanie -->
@@ -55,6 +55,7 @@
         <button class="tab" data-tab="items" role="tab">Przedmioty</button>
         <button class="tab" data-tab="bundles" role="tab">Zestawy i rabaty</button>
         <button class="tab" data-tab="enchants" role="tab">Enchanty</button>
+        <button class="tab" data-tab="promos" role="tab">Kody</button>
         <button class="tab" data-tab="categories" role="tab">Kategorie</button>
         <button class="tab" data-tab="settings" role="tab">Ustawienia</button>
       </nav>
@@ -130,6 +131,21 @@
           <button class="btn btn-primary" id="addEnchBtn">+ Dodaj enchant</button>
         </div>
         <div id="enchList" class="admin-cards"></div>
+      </section>
+
+      <!-- Kody promocyjne -->
+      <section class="tab-panel" id="tab-promos" hidden>
+        <div class="panel-bar">
+          <p class="muted grow">Kod daje −X% na przedmioty w koszyku (dopłata za natychmiastową dostawę zostaje). Zaokrąglamy do pełnych sztuk.</p>
+          <button class="btn btn-primary" id="addPromoBtn">+ Nowy kod</button>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead><tr><th>Kod</th><th>Rabat</th><th>Ważny do</th><th>Użycia</th><th>Baner</th><th>Aktywny</th><th></th></tr></thead>
+            <tbody id="promoRows"></tbody>
+          </table>
+        </div>
+        <p id="promoEmpty" class="empty" hidden>Brak kodów.</p>
       </section>
 
       <!-- Kategorie -->
@@ -278,10 +294,38 @@
     </form>
   </dialog>
 
+  <!-- Okno kodu -->
+  <dialog id="promoDialog" class="modal">
+    <form id="promoForm" method="dialog">
+      <header class="modal-head">
+        <h2 id="promoDialogTitle">Nowy kod</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Zamknij">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-row">
+          <label class="grow">Kod<input name="code" required maxlength="30" placeholder="np. SWIETA2026" class="mono" spellcheck="false"></label>
+          <label>Rabat (%)<input name="percent" type="number" min="1" max="90" value="10" required></label>
+        </div>
+        <div class="form-row">
+          <label class="grow">Ważny do (włącznie)<input name="expires" type="date"><span class="hint">Puste = bez końca</span></label>
+          <label class="grow">Limit użyć<input name="maxUses" type="number" min="1" placeholder="bez limitu"></label>
+        </div>
+        <label>Opis (dla Ciebie)<input name="note" maxlength="200" placeholder="np. promocja na święta"></label>
+        <label class="check"><input type="checkbox" name="public"> Pokaż baner z tym kodem na stronie</label>
+        <label class="check"><input type="checkbox" name="active" checked> Aktywny</label>
+        <p class="form-error" role="alert"></p>
+      </div>
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close>Anuluj</button>
+        <button type="submit" class="btn btn-primary">Zapisz</button>
+      </footer>
+    </form>
+  </dialog>
+
   <datalist id="itemNames"></datalist>
 
-  <script src="js/config.js?v=mw0vhxh2"></script>
-  <script src="js/common.js?v=mw0vhxh2"></script>
-  <script src="js/admin.js?v=mw0vhxh2"></script>
+  <script src="js/config.js?v=mw0vstlm"></script>
+  <script src="js/common.js?v=mw0vstlm"></script>
+  <script src="js/admin.js?v=mw0vstlm"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import * as catalog from './catalog.js';
 import * as auth from './auth.js';
 import * as orders from './orders.js';
 import * as chat from './chat.js';
+import * as promo from './promo.js';
 import { getSettings, ip } from './shop.js';
 
 const { HttpError } = catalog;
@@ -76,6 +77,7 @@ const adminResources = {
   categories: [catalog.saveCategory, catalog.deleteCategory],
   bundles: [catalog.saveBundle, catalog.deleteBundle],
   enchants: [catalog.saveEnchant, catalog.deleteEnchant],
+  promos: [promo.save, promo.remove],
 };
 
 async function route(request, env, ctx) {
@@ -90,8 +92,8 @@ async function route(request, env, ctx) {
   if (method === 'GET' && iconMatch) return icon(request, ctx, decodeURIComponent(iconMatch[1]));
 
   if (method === 'GET' && path === '/api/catalog') {
-    const [data, shop] = await Promise.all([catalog.getCatalog(db), getSettings(db)]);
-    return json({ ...data, shop }, 200, { 'Cache-Control': 'no-cache' });
+    const [data, shop, promos] = await Promise.all([catalog.getCatalog(db), getSettings(db), promo.publicPromos(db)]);
+    return json({ ...data, shop: { ...shop, promos } }, 200, { 'Cache-Control': 'no-cache' });
   }
 
   // Wszystko ponizej tylko z dozwolonych stron (GitHub Pages / lokalnie)
@@ -101,6 +103,7 @@ async function route(request, env, ctx) {
   if (method === 'POST' && path === '/api/orders') return json(await orders.createOrder(env, request, await readBody(request), ip(request)), 201);
   const orderMatch = path.match(/^\/api\/orders\/([A-Za-z0-9]+)$/);
   if (method === 'GET' && orderMatch) return json(await orders.getOrder(db, orderMatch[1].toUpperCase()));
+  if (method === 'POST' && path === '/api/promo/check') return json(await promo.check(db, await readBody(request), ip(request)));
   if (method === 'POST' && path === '/api/chat/start') return json(await chat.startChat(env, await readBody(request), ip(request)), 201);
   if (method === 'GET' && path === '/api/chat/messages') return json(await chat.getMessages(env, request, url.searchParams.get('after')));
   if (method === 'POST' && path === '/api/chat/messages') return json(await chat.sendMessage(env, request, await readBody(request), ip(request), ctx), 201);
@@ -157,6 +160,7 @@ async function route(request, env, ctx) {
     return json({ conversations, stats });
   }
 
+  if (method === 'GET' && path === '/api/admin/promos') return json(await promo.list(db));
   if (method === 'GET' && path === '/api/admin/orders') return json(await orders.listOrders(db, url.searchParams.get('status')));
   const ord = path.match(/^\/api\/admin\/orders\/([^/]+)$/);
   if (ord && method === 'PUT') { await orders.updateOrder(db, parseId(ord[1]), await readBody(request)); return json({ ok: true }); }
@@ -180,7 +184,7 @@ async function route(request, env, ctx) {
   }
 
   // Kazdy typ danych: POST = dodaj, PUT = edytuj, DELETE = usun
-  const m = path.match(/^\/api\/admin\/(items|categories|bundles|enchants)(?:\/([^/]+))?$/);
+  const m = path.match(/^\/api\/admin\/(items|categories|bundles|enchants|promos)(?:\/([^/]+))?$/);
   if (m) {
     const [save, remove] = adminResources[m[1]];
     if (method === 'POST' && !m[2]) return json({ id: await save(db, null, await readBody(request)) }, 201);

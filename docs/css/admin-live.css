@@ -1,4 +1,7 @@
-/* Panel admina: zamowienia, czat i enchanty */
+/* Panel admina: zamowienia, czat, enchanty i kody */
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: .5px; }
+input.mono { text-transform: uppercase; }
+.promo-pct-sm { color: var(--gold); font-size: 15px; }
 .ench-items-tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .ench-items-tools input { flex: 1; min-width: 160px; padding: 7px 10px; }
 .ench-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; }

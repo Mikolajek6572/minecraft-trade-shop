@@ -92,6 +92,7 @@
     renderBundles();
     renderCategories();
     renderEnchantsAdmin();
+    loadPromos();
     const sf = $('#settingsForm');
     sf.shopName.value = data.shopName;
     if (data.shop && document.activeElement?.form !== sf) {
@@ -470,6 +471,92 @@
     } catch (err) { $('.form-error', enchForm).textContent = err.message; }
   });
 
+  // ---------- kody promocyjne ----------
+  let promos = [];
+  const dayEnd = (dateStr) => { const [y, m, d] = dateStr.split('-').map(Number); return new Date(y, m - 1, d, 23, 59, 59).getTime(); };
+  const toDateInput = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+  async function loadPromos() {
+    try { promos = await call('/api/admin/promos'); } catch { return; }
+    renderPromos();
+  }
+
+  function promoState(p) {
+    if (!p.active) return '<span class="status-pill status-cancelled">wyłączony</span>';
+    if (p.expiresAt && p.expiresAt < Date.now()) return '<span class="status-pill status-cancelled">wygasł</span>';
+    if (p.maxUses && p.uses >= p.maxUses) return '<span class="status-pill status-cancelled">wykorzystany</span>';
+    return '<span class="status-pill status-done">działa</span>';
+  }
+
+  function renderPromos() {
+    $('#promoEmpty').hidden = promos.length > 0;
+    $('#promoRows').innerHTML = promos.map((p) => `
+      <tr data-id="${p.id}" class="${p.active ? '' : 'hidden-row'}">
+        <td><b class="mono">${esc(p.code)}</b>${p.note ? `<div class="muted small">${esc(p.note)}</div>` : ''}</td>
+        <td><b class="promo-pct-sm">−${p.percent}%</b></td>
+        <td>${p.expiresAt ? new Date(p.expiresAt).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) : '<span class="muted">bez końca</span>'}</td>
+        <td>${p.uses}${p.maxUses ? ` / ${p.maxUses}` : ''}</td>
+        <td>${p.public ? 'tak' : '<span class="muted">nie</span>'}</td>
+        <td>${promoState(p)}</td>
+        <td><div class="row-actions">
+          <button class="icon-btn" data-act="edit" aria-label="Edytuj ${esc(p.code)}">${ICONS.edit}</button>
+          <button class="icon-btn danger" data-act="delete" aria-label="Usuń ${esc(p.code)}">${ICONS.trash}</button>
+        </div></td>
+      </tr>`).join('');
+  }
+
+  const promoForm = $('#promoForm');
+  let editingPromo = null;
+  function openPromo(p) {
+    editingPromo = p;
+    $('#promoDialogTitle').textContent = p ? `Edytuj: ${p.code}` : 'Nowy kod';
+    promoForm.reset();
+    promoForm.code.value = p?.code || '';
+    promoForm.percent.value = p?.percent ?? 10;
+    promoForm.expires.value = p?.expiresAt ? toDateInput(p.expiresAt) : '';
+    promoForm.maxUses.value = p?.maxUses ?? '';
+    promoForm.note.value = p?.note || '';
+    promoForm.public.checked = p ? p.public : false;
+    promoForm.active.checked = p ? p.active : true;
+    $('.form-error', promoForm).textContent = '';
+    $('#promoDialog').showModal();
+    promoForm.code.focus();
+  }
+  $('#addPromoBtn').addEventListener('click', () => openPromo(null));
+  promoForm.code.addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/\s/g, ''); });
+  $('#promoRows').addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const p = promos.find((x) => x.id === Number(btn.closest('tr').dataset.id));
+    if (btn.dataset.act === 'edit') openPromo(p);
+    if (btn.dataset.act === 'delete' && confirm(`Usunąć kod ${p.code}?`)) {
+      try {
+        await call(`/api/admin/promos/${p.id}`, { method: 'DELETE' });
+        toast('Usunięto kod');
+        loadPromos();
+      } catch (err) { toast(err.message, 'err'); }
+    }
+  });
+  promoForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      code: promoForm.code.value,
+      percent: Number(promoForm.percent.value),
+      expiresAt: promoForm.expires.value ? dayEnd(promoForm.expires.value) : null,
+      maxUses: promoForm.maxUses.value ? Number(promoForm.maxUses.value) : null,
+      note: promoForm.note.value,
+      public: promoForm.public.checked,
+      active: promoForm.active.checked,
+    };
+    try {
+      if (editingPromo) await call(`/api/admin/promos/${editingPromo.id}`, { method: 'PUT', body });
+      else await call('/api/admin/promos', { method: 'POST', body });
+      $('#promoDialog').close();
+      toast(`Zapisano kod ${body.code}`);
+      loadPromos();
+    } catch (err) { $('.form-error', promoForm).textContent = err.message; }
+  });
+
   // ---------- kategorie ----------
   function renderCategories() {
     $('#catList').innerHTML = data.categories.length ? data.categories.map((c) => `
@@ -690,6 +777,7 @@
             <span><b>${l.qty}×</b> ${esc(l.name)}${l.type === 'bundle' ? ' <span class="badge">zestaw</span>' : ''}${l.enchants?.length ? `<br><span class="ench-text">${esc(enchText(l.enchants))}</span>` : ''}</span>
             <span class="muted small">${esc(priceText(l.prices.map((p) => ({ ...p, amount: p.amount * l.qty }))))}</span></li>`).join('')}
         </ul>
+        ${o.promo ? `<div class="promo-used small">Kod <b class="mono">${esc(o.promo.code)}</b> (−${o.promo.percent}%) · bez kodu: <s>${esc(priceText(o.subtotal || []))}</s></div>` : ''}
         <div class="order-total">Gracz płaci: <b>${esc(priceText(o.total))}</b>${o.expressFee.length ? ` <span class="muted small">(w tym dopłata ${esc(priceText(o.expressFee))})</span>` : ''}</div>
         ${o.customerNote ? `<p class="cust-note">Uwagi gracza: „${esc(o.customerNote)}”</p>` : ''}
         <div class="order-actions">${orderActions(o)}</div>

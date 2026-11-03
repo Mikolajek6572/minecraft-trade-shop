@@ -48,6 +48,7 @@ MinecraftTradeShop/
 | `conversations`, `messages` | czat z graczami (+ notatka admina, czy asystent odpowiada) |
 | `orders` | zamówienia: nick, pozycje z cenami z chwili zamówienia, suma, natychmiastowa dostawa, status |
 | `rate_limits` | limity spamu (zamówienia, czat) |
+| `promo_codes` | kody promocyjne: rabat %, ważność, limit i licznik użyć, baner |
 | `enchants`, `enchant_prices` | enchanty: maks. poziom, cena za poziom, pasujące przedmioty, czy jako księga |
 | `settings` | ustawienia, np. nazwa sklepu |
 
@@ -104,6 +105,12 @@ Potem wchodzisz na `admin.html` i się logujesz. Hasło zmienisz też w panelu: 
 - Na stronie jest sekcja **Enchanty i księgi**, a przy pasujących przedmiotach przycisk **Enchanty** – gracz zaznacza enchanty i poziomy, widzi cenę za sztukę i dodaje do koszyka.
 - Cena = cena przedmiotu + (cena enchantu × poziom). Księga kosztuje tylko enchanty. Serwer sam to liczy i sprawdza, czy enchant pasuje i czy poziom nie jest za wysoki.
 - Na start jest 7 enchantów (Protection, Unbreaking, Mending, Feather Falling, Sharpness, Efficiency, Fortune) – zmienisz je w panelu.
+
+**Kody promocyjne:**
+- Zakładka **Kody** w panelu: kod, rabat w %, data ważności (włącznie z tym dniem), limit użyć, opis, włącz/wyłącz i opcja **baneru na stronie**.
+- Gracz wpisuje kod w koszyku (albo klika baner) – rabat obejmuje przedmioty, dopłata za natychmiastową dostawę zostaje. Kwoty zaokrąglamy do pełnych sztuk.
+- Serwer sprawdza kod przy każdym zamówieniu (wygasły, wyłączony albo wykorzystany nie przejdzie) i liczy użycia. W zamówieniu widać kod i cenę bez rabatu.
+- Na start: **SWIETA2026 = −30% do 20 lutego 2027** (z banerem na stronie).
 
 Ochrona przed spamem: max 10 zamówień na godzinę z jednego IP, limit wiadomości w czacie i nowych rozmów.
 Asystent korzysta z darmowego limitu Workers AI – gdy się skończy, gracz dostaje info, że admin odpisze.
